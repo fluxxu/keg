@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import os
 from argparse import ArgumentParser
-from configparser import ConfigParser
+
+import toml
 
 
 DEFAULT_REMOTE = "http://us.patch.battle.net:1119/hsb"
@@ -16,12 +17,15 @@ class App:
 		self.init_config()
 
 	def init_config(self):
-		self.config = ConfigParser()
 		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
+
 		if os.path.exists(self.config_path):
-			self.config.read(self.config_path)
-			assert "keg" in self.config.sections()
-			assert self.config["keg"].get("config_version") == "1"
+			with open(self.config_path, "r") as f:
+				self.config = toml.load(f)
+			assert "keg" in self.config
+			assert self.config["keg"].get("config_version") == 1
+		else:
+			self.config = {}
 
 	def init_repo(self):
 		if not os.path.exists(self.ngdp_path):
@@ -31,12 +35,12 @@ class App:
 			print(f"Reinitialized in {self.ngdp_path}")
 
 		if not os.path.exists(self.config_path):
-			self.config["keg"] = {"config_version": "1"}
+			self.config["keg"] = {"config_version": 1}
 			self.save_config()
 
 	def save_config(self):
 		with open(self.config_path, "w") as f:
-			self.config.write(f)
+			toml.dump(self.config, f)
 
 	def run(self):
 		from keg import Keg
