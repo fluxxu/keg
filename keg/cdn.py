@@ -1,0 +1,81 @@
+import os
+
+import requests
+
+from . import blizini, blte
+from .archive import ArchiveIndex
+from .configfile import BuildConfig, CDNConfig, PatchConfig
+
+
+def partition_hash(hash: str) -> str:
+	return f"{hash[0:2]}/{hash[2:4]}/{hash}"
+
+
+class BaseCDN:
+	def get_item(self, path: str):
+		raise NotImplementedError()
+
+	def download_build_config(self, hash: str) -> BuildConfig:
+		return BuildConfig(self.download_config(hash))
+
+	def download_cdn_config(self, hash: str) -> CDNConfig:
+		return CDNConfig(self.download_config(hash))
+
+	def download_patch_config(self, hash: str) -> PatchConfig:
+		return PatchConfig(self.download_config(hash))
+
+	def download_config(self, hash: str) -> dict:
+		resp = self.get_item(f"/config/{partition_hash(hash)}")
+		return blizini.load(resp.read().decode())
+
+	def download_data_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
+		resp = self.get_item(f"/data/{partition_hash(hash)}.index")
+		return ArchiveIndex(resp, hash, verify=verify)
+
+	def download_data(self, hash: str, verify: bool=False) -> bytes:
+		resp = self.get_item(f"/data/{partition_hash(hash)}")
+		data = blte.BLTEDecoder(resp, hash, verify=verify)
+
+		return b"".join(data.blocks)
+
+
+class RemoteCDN(BaseCDN):
+	def __init__(self, cdn):
+		assert cdn.all_servers
+		self.server = cdn.all_servers[0]
+		self.path = cdn.path
+
+	def get_item(self, path: str):
+		url = f"{self.server}/{self.path}{path}"
+		return requests.get(url, stream=True).raw
+
+
+class LocalCDN(BaseCDN):
+	def __init__(self, base_dir: str) -> None:
+		self.base_dir = base_dir
+
+	def get_full_path(self, path: str) -> str:
+		return os.path.join(self.base_dir, path)
+
+	def get_item(self, path: str):
+		return open(self.get_full_path(path), "r")  # TODO don't leak
+
+	def exists(self, path: str) -> bool:
+		return os.path.exists(self.get_full_path(path))
+
+
+class CacheableCDNWrapper(BaseCDN):
+	def __init__(self, cdns_response, base_dir: str) -> None:
+		if not os.path.exists(base_dir):
+			os.makedirs(base_dir)
+		self.local_cdn = LocalCDN(base_dir)
+		self.remote_cdn = RemoteCDN(cdns_response)
+
+	def get_item(self, path: str):
+		cdn: BaseCDN
+		if self.local_cdn.exists(path):
+			cdn = self.local_cdn
+		else:
+			cdn = self.remote_cdn
+
+		return cdn.get_item(path)

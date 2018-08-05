@@ -3,13 +3,7 @@ from typing import List
 
 import requests
 
-from . import blizini, blte, psv
-from .archive import ArchiveIndex
-from .configfile import BuildConfig, CDNConfig, PatchConfig
-
-
-def partition_hash(hash: str) -> str:
-	return f"{hash[0:2]}/{hash[2:4]}/{hash}"
+from . import psv
 
 
 class CDNs:
@@ -33,35 +27,6 @@ class CDNs:
 	@property
 	def servers(self) -> list:
 		return self._values.get("Servers", "").split()
-
-	def download_build_config(self, hash: str) -> BuildConfig:
-		return BuildConfig(self.download_config(hash))
-
-	def download_cdn_config(self, hash: str) -> CDNConfig:
-		return CDNConfig(self.download_config(hash))
-
-	def download_patch_config(self, hash: str) -> PatchConfig:
-		return PatchConfig(self.download_config(hash))
-
-	def get_url(self, path: str):
-		assert self.all_servers
-		server = self.all_servers[0]
-		url = f"{server}/{self.path}{path}"
-		return requests.get(url, stream=True)
-
-	def download_config(self, hash: str) -> dict:
-		config = self.get_url(f"/config/{partition_hash(hash)}")
-		return blizini.load(config.raw.read().decode())
-
-	def download_data_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
-		resp = self.get_url(f"/data/{partition_hash(hash)}.index")
-		return ArchiveIndex(resp.raw, hash, verify=verify)
-
-	def download_data(self, hash: str, verify: bool=False) -> bytes:
-		resp = self.get_url(f"/data/{partition_hash(hash)}")
-		data = blte.BLTEDecoder(resp.raw, hash, verify=verify)
-
-		return b"".join(data.blocks)
 
 
 class Versions:
