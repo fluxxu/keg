@@ -20,6 +20,8 @@ class App:
 		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
 		if os.path.exists(self.config_path):
 			self.config.read(self.config_path)
+			assert "keg" in self.config.sections()
+			assert self.config["keg"].get("config_version") == "1"
 
 	def init_repo(self):
 		if not os.path.exists(self.ngdp_path):
@@ -29,6 +31,7 @@ class App:
 			print(f"Reinitialized in {self.ngdp_path}")
 
 		if not os.path.exists(self.config_path):
+			self.config["keg"] = {"config_version": "1"}
 			self.save_config()
 
 	def save_config(self):
