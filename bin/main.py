@@ -89,7 +89,9 @@ class App:
 
 		for archive_key in cdn_config.archives:
 			archive_index = cdn.download_data_index(archive_key)
-			print(archive_index.files)
+
+			for item in archive_index.items:
+				print(item)
 
 			# archive = ArchiveFile(archive_key)
 
