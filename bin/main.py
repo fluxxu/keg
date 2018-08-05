@@ -85,10 +85,13 @@ class App:
 		# get the archive list
 
 		# example key
-		encoding_key = encoding_file.keys[0]
+		encoding_key = next(encoding_file.keys)
 
 		for archive_key in cdn_config.archives:
-			archive = ArchiveFile(archive_key)
+			archive_index = cdn.download_data_index(archive_key)
+			print(archive_index.files)
+
+			# archive = ArchiveFile(archive_key)
 
 		key = archive_group.resolve_encoding_key(encoding_key)
 		if key:

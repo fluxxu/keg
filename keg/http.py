@@ -4,6 +4,7 @@ from typing import List
 import requests
 
 from . import blizini, blte, psv
+from .archive import ArchiveIndex
 from .configfile import BuildConfig, CDNConfig, PatchConfig
 
 
@@ -52,7 +53,11 @@ class CDNs:
 		config = self.get_url(f"/config/{partition_hash(hash)}")
 		return blizini.load(config.content.decode())
 
-	def download_data(self, hash: str, verify=False) -> bytes:
+	def download_data_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
+		resp = self.get_url(f"/data/{partition_hash(hash)}.index", stream=True)
+		return ArchiveIndex(resp.raw, hash, verify=verify)
+
+	def download_data(self, hash: str, verify: bool=False) -> bytes:
 		resp = self.get_url(f"/data/{partition_hash(hash)}", stream=True)
 		data = blte.BLTEDecoder(resp.raw, hash, verify=verify)
 
