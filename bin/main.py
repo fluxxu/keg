@@ -9,11 +9,22 @@ DEFAULT_REMOTE = "http://us.patch.battle.net:1119/hsb"
 class App:
 	def __init__(self, args):
 		p = ArgumentParser()
+		p.add_argument("--ngdp-dir", default=".ngdp")
 		self.args = p.parse_args(args)
+
+	def init_repo(self):
+		path = os.path.abspath(self.args.ngdp_dir)
+		if not os.path.exists(path):
+			os.makedirs(path)
+			print(f"Initialized in {path}")
+		else:
+			print(f"Reinitialized in {path}")
 
 	def run(self):
 		from keg import Keg
 		from keg.encoding import EncodingFile
+
+		self.init_repo()
 
 		keg = Keg(DEFAULT_REMOTE)
 		versions = keg.get_versions()
