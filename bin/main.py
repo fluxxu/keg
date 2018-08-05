@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 from argparse import ArgumentParser
+from typing import List
 
 import toml
 
@@ -15,6 +16,10 @@ class App:
 		self.args = p.parse_args(args)
 		self.ngdp_path = os.path.abspath(self.args.ngdp_dir)
 		self.init_config()
+
+	@property
+	def remotes(self) -> List[str]:
+		return self.config["keg"].get("remotes", [])
 
 	def init_config(self):
 		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
@@ -42,13 +47,21 @@ class App:
 		with open(self.config_path, "w") as f:
 			toml.dump(self.config, f)
 
+	def add_remote(self, remote: str):
+		if "remotes" not in self.config["keg"]:
+			self.config["keg"]["remotes"] = []
+		self.config["keg"]["remotes"].append(remote)
+		self.save_config()
+
 	def run(self):
 		from keg import Keg
 		from keg.encoding import EncodingFile
 
 		self.init_repo()
+		if DEFAULT_REMOTE not in self.remotes:
+			self.add_remote(DEFAULT_REMOTE)
 
-		keg = Keg(DEFAULT_REMOTE)
+		keg = Keg(self.remotes[0])
 		versions = keg.get_versions()
 		cdns = keg.get_cdns()
 
