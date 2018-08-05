@@ -3,6 +3,9 @@ import os
 from argparse import ArgumentParser
 
 
+DEFAULT_REMOTE = "http://us.patch.battle.net:1119/hsb"
+
+
 class App:
 	def __init__(self, args):
 		p = ArgumentParser()
@@ -12,7 +15,7 @@ class App:
 		from keg import Keg
 		from keg.encoding import EncodingFile
 
-		keg = Keg("hsb")
+		keg = Keg(DEFAULT_REMOTE)
 		versions = keg.get_versions()
 		cdns = keg.get_cdns()
 

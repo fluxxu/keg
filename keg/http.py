@@ -75,13 +75,11 @@ class Versions:
 
 
 class HttpBackend:
-	PATCH_SERVER = "us.patch.battle.net:1119"
+	def __init__(self, remote: str) -> None:
+		self.remote = remote
 
-	def __init__(self, prog):
-		self.prog = prog
-
-	def request_path(self, path):
-		url = f"http://{self.PATCH_SERVER}/{self.prog}{path}"
+	def request_path(self, path: str):
+		url = self.remote + path
 		print(url)
 		return requests.get(url)
 
