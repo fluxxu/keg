@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 from argparse import ArgumentParser
+from configparser import ConfigParser
 
 
 DEFAULT_REMOTE = "http://us.patch.battle.net:1119/hsb"
@@ -11,14 +12,28 @@ class App:
 		p = ArgumentParser()
 		p.add_argument("--ngdp-dir", default=".ngdp")
 		self.args = p.parse_args(args)
+		self.ngdp_path = os.path.abspath(self.args.ngdp_dir)
+		self.init_config()
+
+	def init_config(self):
+		self.config = ConfigParser()
+		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
+		if os.path.exists(self.config_path):
+			self.config.read(self.config_path)
 
 	def init_repo(self):
-		path = os.path.abspath(self.args.ngdp_dir)
-		if not os.path.exists(path):
-			os.makedirs(path)
-			print(f"Initialized in {path}")
+		if not os.path.exists(self.ngdp_path):
+			os.makedirs(self.ngdp_path)
+			print(f"Initialized in {self.ngdp_path}")
 		else:
-			print(f"Reinitialized in {path}")
+			print(f"Reinitialized in {self.ngdp_path}")
+
+		if not os.path.exists(self.config_path):
+			self.save_config()
+
+	def save_config(self):
+		with open(self.config_path, "w") as f:
+			self.config.write(f)
 
 	def run(self):
 		from keg import Keg
