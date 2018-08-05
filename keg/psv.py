@@ -1,7 +1,8 @@
 import csv
+from typing import Dict, List
 
 
-def load(fp) -> dict:
+def load(fp) -> List[Dict[str, str]]:
 	values = csv.DictReader(
 		filter(lambda row: not row.startswith("#"), fp),
 		delimiter="|"
