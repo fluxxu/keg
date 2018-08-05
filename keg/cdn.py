@@ -25,18 +25,17 @@ class BaseCDN:
 		return PatchConfig(self.download_config(hash))
 
 	def download_config(self, hash: str) -> dict:
-		resp = self.get_item(f"/config/{partition_hash(hash)}")
-		return blizini.load(resp.read().decode())
+		with self.get_item(f"/config/{partition_hash(hash)}") as resp:
+			return blizini.load(resp.read().decode())
 
 	def download_data_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
-		resp = self.get_item(f"/data/{partition_hash(hash)}.index")
-		return ArchiveIndex(resp, hash, verify=verify)
+		with self.get_item(f"/data/{partition_hash(hash)}.index") as resp:
+			return ArchiveIndex(resp.read(), hash, verify=verify)
 
 	def download_data(self, hash: str, verify: bool=False) -> bytes:
-		resp = self.get_item(f"/data/{partition_hash(hash)}")
-		data = blte.BLTEDecoder(resp, hash, verify=verify)
-
-		return b"".join(data.blocks)
+		with self.get_item(f"/data/{partition_hash(hash)}") as resp:
+			data = blte.BLTEDecoder(resp, hash, verify=verify)
+			return b"".join(data.blocks)
 
 
 class RemoteCDN(BaseCDN):
@@ -55,10 +54,10 @@ class LocalCDN(BaseCDN):
 		self.base_dir = base_dir
 
 	def get_full_path(self, path: str) -> str:
-		return os.path.join(self.base_dir, path)
+		return os.path.join(self.base_dir, path.lstrip("/"))
 
 	def get_item(self, path: str):
-		return open(self.get_full_path(path), "r")  # TODO don't leak
+		return open(self.get_full_path(path), "rb")
 
 	def exists(self, path: str) -> bool:
 		return os.path.exists(self.get_full_path(path))
@@ -72,10 +71,46 @@ class CacheableCDNWrapper(BaseCDN):
 		self.remote_cdn = RemoteCDN(cdns_response)
 
 	def get_item(self, path: str):
-		cdn: BaseCDN
 		if self.local_cdn.exists(path):
-			cdn = self.local_cdn
-		else:
-			cdn = self.remote_cdn
+			return self.local_cdn.get_item(path)
 
-		return cdn.get_item(path)
+		cache_file_path = self.local_cdn.get_full_path(path)
+		return HTTPCacheWrapper(self.remote_cdn.get_item(path), cache_file_path)
+
+
+class HTTPCacheWrapper:
+	def __init__(self, obj, path: str) -> None:
+		self._obj = obj
+
+		dir_path = os.path.dirname(path)
+		if not os.path.exists(dir_path):
+			os.makedirs(dir_path)
+
+		self._real_path = path
+		self._temp_path = path + ".keg_temp"
+		self._cache_file = open(self._temp_path, "wb")
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *exc):
+		self.close()
+		return False
+
+	def close(self):
+		self.read()
+		self._cache_file.close()
+
+		# Atomic write&move; make sure there's no partially-written caches.
+		os.rename(self._temp_path, self._real_path)
+
+		return self._obj.close()
+
+	def read(self, bytes: int=-1) -> bytes:
+		if bytes == -1:
+			ret = self._obj.read()
+		else:
+			ret = self._obj.read(bytes)
+		if ret:
+			self._cache_file.write(ret)
+		return ret

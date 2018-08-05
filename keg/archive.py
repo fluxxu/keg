@@ -13,7 +13,7 @@ class ArchiveIndex:
 		self.hash = hash
 		self.verify = verify
 
-		self.data = BytesIO(data.read())
+		self.data = BytesIO(data)
 		self.data.seek(-28, SEEK_END)
 
 		(
