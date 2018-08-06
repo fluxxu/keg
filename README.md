@@ -119,3 +119,9 @@ Implementation of the CLI ngdptool:
 
 - ngdptool install {build} --tags Win --outdir out
   Install a build to the local disk.
+
+
+## License
+
+This project is licensed under the terms of the MIT license.
+See the LICENSE file for the full license text.
