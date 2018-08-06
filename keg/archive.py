@@ -2,6 +2,7 @@ import struct
 from binascii import hexlify
 from io import BytesIO
 from os import SEEK_CUR, SEEK_END
+from typing import List
 
 
 class Archive:
@@ -58,4 +59,18 @@ class ArchiveIndex:
 
 
 class ArchiveGroup:
-	pass
+	def __init__(self, *archive_keys: List[str], verify: bool=False) -> None:
+		self.archive_keys = archive_keys
+		self.verify = verify
+
+	def __repr__(self):
+		return f"<{self.__class__.__name__}: {self.key}>"
+
+	@property
+	def archives(self):
+		for archive_key in self.archive_keys:
+			yield Archive(archive_key)
+
+	def get_indices(self, cdn):
+		for archive_key in self.archive_key:
+			yield cdn.download_data_index(archive_key, verify=self.verify)
