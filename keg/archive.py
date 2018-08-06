@@ -30,6 +30,9 @@ class ArchiveIndex:
 			footer_checksum
 		) = struct.unpack("<8s8BI8s", self.data.read())
 
+	def __repr__(self):
+		return f"<{self.__class__.__name__}: {self.key}>"
+
 	@property
 	def items(self):
 		self.data.seek(0)
