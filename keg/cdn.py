@@ -1,4 +1,5 @@
 import os
+from typing import IO
 
 import requests
 
@@ -32,10 +33,13 @@ class BaseCDN:
 		with self.get_item(f"/data/{partition_hash(hash)}.index") as resp:
 			return ArchiveIndex(resp.read(), hash, verify=verify)
 
-	def download_data(self, hash: str, verify: bool=False) -> bytes:
+	def download_blte_data(self, hash: str, verify: bool=False) -> bytes:
 		with self.get_item(f"/data/{partition_hash(hash)}") as resp:
 			data = blte.BLTEDecoder(resp, hash, verify=verify)
 			return b"".join(data.blocks)
+
+	def download_data(self, hash: str) -> IO:
+		return self.get_item(f"/data/{partition_hash(hash)}")
 
 
 class RemoteCDN(BaseCDN):

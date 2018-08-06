@@ -83,7 +83,7 @@ class App:
 
 		content_key, encoding_key = build_config.encodings
 
-		encoding_data = cdn_wrapper.download_data(encoding_key)
+		encoding_data = cdn_wrapper.download_blte_data(encoding_key)
 		encoding_file = EncodingFile(encoding_data)
 
 		# get the archive list
@@ -103,10 +103,10 @@ class App:
 		key = archive_group.resolve_encoding_key(encoding_key)
 		if key:
 			# key resolved in the archive file
-			cdn_wrapper.download_data(key)
+			cdn_wrapper.download_blte_data(key)
 		else:
 			# loose file
-			cdn_wrapper.download_data(encoding_key)
+			cdn_wrapper.download_blte_data(encoding_key)
 
 		# whats left?
 		# metadata:
