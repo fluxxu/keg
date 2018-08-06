@@ -15,7 +15,7 @@ class App:
 		p.add_argument("--ngdp-dir", default=".ngdp")
 		self.args = p.parse_args(args)
 		self.ngdp_path = os.path.abspath(self.args.ngdp_dir)
-		self.fragments_path = os.path.join(self.ngdp_path, "fragments")
+		self.objects_path = os.path.join(self.ngdp_path, "objects")
 		self.init_config()
 
 	@property
@@ -71,7 +71,7 @@ class App:
 		assert cdns
 		cdn = cdns[0]
 
-		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.fragments_path)
+		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.objects_path)
 
 		for version in versions:
 			# BuildConfig: http://blzddist1-a.akamaihd.net/tpr/hs/config/6a/5f/6a5f9d058ac7c519d929571a64e4ef3d
