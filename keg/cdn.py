@@ -46,7 +46,11 @@ class RemoteCDN(BaseCDN):
 
 	def get_item(self, path: str):
 		url = f"{self.server}/{self.path}{path}"
-		return requests.get(url, stream=True).raw
+		print(f"HTTP GET {url}")
+		resp = requests.get(url, stream=True)
+		print(f"Downloading {resp.headers['content-length']} bytes...")
+
+		return resp.raw
 
 
 class LocalCDN(BaseCDN):
