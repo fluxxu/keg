@@ -5,7 +5,12 @@ from os import SEEK_CUR, SEEK_END
 
 
 class Archive:
-	pass
+	def __init__(self, key: str, verify: bool=False) -> None:
+		self.key = key
+		self.verify = verify
+
+	def __repr__(self):
+		return f"<{self.__class__.__name__}: {self.key}>"
 
 
 class ArchiveIndex:
