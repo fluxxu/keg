@@ -87,6 +87,10 @@ class ArchiveGroup:
 		self.key = key
 		self.verify = verify
 
+		self.archives: List[Archive] = [
+			Archive(archive_key) for archive_key in archive_keys
+		]
+
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key}>"
 
