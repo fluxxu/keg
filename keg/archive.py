@@ -14,8 +14,8 @@ class Archive:
 
 
 class ArchiveIndex:
-	def __init__(self, data: bytes, hash: str, verify: bool=False) -> None:
-		self.hash = hash
+	def __init__(self, data: bytes, key: str, verify: bool=False) -> None:
+		self.key = key
 		self.verify = verify
 
 		self.data = BytesIO(data)
@@ -29,7 +29,7 @@ class ArchiveIndex:
 			self.block_size_kb,
 			self.offset_size,
 			self.size_size,
-			self.hash_size,
+			self.key_size,
 			checksum_size,
 			self.num_items,
 			footer_checksum
@@ -45,17 +45,16 @@ class ArchiveIndex:
 		bytes_left_in_block = self.block_size_kb * 1024
 
 		for i in range(self.num_items):
-			bytes_to_read = self.hash_size + self.size_size + self.offset_size
+			bytes_to_read = self.key_size + self.size_size + self.offset_size
 			if bytes_to_read > bytes_left_in_block:
 				self.data.seek(bytes_left_in_block, SEEK_CUR)
 				bytes_left_in_block = self.block_size_kb * 1024
 			bytes_left_in_block -= bytes_to_read
 
 			_data = self.data.read(bytes_to_read)
-			hash, size, offset = struct.unpack(">16sII", _data)
-			hash = hexlify(hash).decode()
-			yield hash, size, offset
-
+			key, size, offset = struct.unpack(">16sII", _data)
+			key = hexlify(key).decode()
+			yield key, size, offset
 
 
 class ArchiveGroup:
