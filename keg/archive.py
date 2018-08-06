@@ -6,9 +6,8 @@ from typing import Iterable, List
 
 
 class Archive:
-	def __init__(self, key: str, verify: bool=False) -> None:
+	def __init__(self, key: str) -> None:
 		self.key = key
-		self.verify = verify
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key}>"
