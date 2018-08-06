@@ -71,11 +71,12 @@ class CacheableCDNWrapper(BaseCDN):
 		self.remote_cdn = RemoteCDN(cdns_response)
 
 	def get_item(self, path: str):
-		if self.local_cdn.exists(path):
-			return self.local_cdn.get_item(path)
+		if not self.local_cdn.exists(path):
+			cache_file_path = self.local_cdn.get_full_path(path)
+			f = HTTPCacheWrapper(self.remote_cdn.get_item(path), cache_file_path)
+			f.close()
 
-		cache_file_path = self.local_cdn.get_full_path(path)
-		return HTTPCacheWrapper(self.remote_cdn.get_item(path), cache_file_path)
+		return self.local_cdn.get_item(path)
 
 
 class HTTPCacheWrapper:
