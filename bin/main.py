@@ -87,6 +87,7 @@ class App:
 		encoding_file = EncodingFile(encoding_data)
 
 		# get the archive list
+		archive_group = ArchiveGroup(cdn_config.archives, cdn_config.archive_group)
 
 		# example key
 		encoding_key = next(encoding_file.keys)
