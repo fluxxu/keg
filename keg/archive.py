@@ -2,15 +2,36 @@ import struct
 from binascii import hexlify
 from io import BytesIO
 from os import SEEK_CUR, SEEK_END
-from typing import Iterable, List
+from typing import IO, Iterable, List, Optional
+
+from .blte import BLTEDecoder
 
 
 class Archive:
 	def __init__(self, key: str) -> None:
 		self.key = key
+		self._data: Optional[IO] = None
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key}>"
+
+	def __del__(self):
+		if self._data is not None:
+			self._data.close()
+
+	def get_file_data(self, size: int, offset: int, cdn):
+		if self._data is None:
+			self._data = cdn.download_data(self.key)
+
+		assert self._data
+		self._data.seek(offset)
+		data = self._data.read(size)
+		return data
+
+	def get_file(self, key: str, size: int, offset: int, cdn, verify: bool=False):
+		data = self.get_file_data(size, offset, cdn)
+		decoded_data = BLTEDecoder(BytesIO(data), key, verify=verify)
+		return b"".join(decoded_data.blocks)
 
 
 class ArchiveIndex:
@@ -93,10 +114,12 @@ class ArchiveGroup:
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key}>"
 
-	@property
-	def archives(self) -> Iterable[Archive]:
-		for archive_key in self.archive_keys:
-			yield Archive(archive_key)
+	def get_file(self, key: str, size: int, archive_id: int, offset: int, cdn):
+		return self.archives[archive_id].get_file(key, size, offset, cdn)
+
+	def get_files(self, cdn):
+		for file_info in self.get_merged_index(cdn).items:
+			yield self.get_file(*file_info, cdn)
 
 	def get_indices(self, cdn) -> Iterable[ArchiveIndex]:
 		for archive_key in self.archive_keys:
