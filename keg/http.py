@@ -32,13 +32,13 @@ class CDNs:
 class Versions:
 	def __init__(self, values: dict) -> None:
 		self._values = values
-		self.build_config = values.get("BuildConfig")
-		self.build_id = values.get("BuildId")
-		self.cdn_config = values.get("CDNConfig")
-		self.keyring = values.get("KeyRing")
-		self.product_config = values.get("ProductConfig")
-		self.region = values.get("Region")
-		self.versions_name = values.get("VersionsName")
+		self.build_config = values.get("BuildConfig", "")
+		self.build_id = values.get("BuildId", "")
+		self.cdn_config = values.get("CDNConfig", "")
+		self.keyring = values.get("KeyRing", "")
+		self.product_config = values.get("ProductConfig", "")
+		self.region = values.get("Region", "")
+		self.versions_name = values.get("VersionsName", "")
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self._values}>"
