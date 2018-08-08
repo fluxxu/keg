@@ -118,18 +118,21 @@ class ArchiveGroup:
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key}>"
 
-	def get_file(self, key: str, size: int, archive_id: int, offset: int):
-		return self.archives[archive_id].get_file(key, size, offset)
-
-	def get_files(self):
-		for file_info in self.get_merged_index().items:
+	@property
+	def files(self):
+		for file_info in self.merged_index.items:
 			yield self.get_file(*file_info)
 
-	def get_indices(self) -> Iterable[ArchiveIndex]:
+	@property
+	def indices(self) -> Iterable[ArchiveIndex]:
 		for archive_key in self.archive_keys:
 			yield self.cdn.download_data_index(archive_key, verify=self.verify)
 
-	def get_merged_index(self) -> ArchiveGroupIndex:
+	@property
+	def merged_index(self) -> ArchiveGroupIndex:
 		return ArchiveGroupIndex(
-			self.get_indices(), self.key, verify=self.verify
+			self.indices, self.key, verify=self.verify
 		)
+
+	def get_file(self, key: str, size: int, archive_id: int, offset: int):
+		return self.archives[archive_id].get_file(key, size, offset)
