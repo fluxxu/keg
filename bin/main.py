@@ -28,7 +28,7 @@ class App:
 			print(message, "Up-to-date.")
 			return
 
-		for key in tqdm(iterable, unit="files"):
+		for key in tqdm(iterable, unit="files", ncols=79):
 			callback(key)
 
 	def init_config(self):
