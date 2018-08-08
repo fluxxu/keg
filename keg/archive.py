@@ -2,7 +2,7 @@ import struct
 from binascii import hexlify
 from io import BytesIO
 from os import SEEK_CUR, SEEK_END
-from typing import IO, Iterable, List, Optional
+from typing import IO, Iterable, List, Optional, Tuple
 
 from .blte import BLTEDecoder
 
@@ -20,7 +20,7 @@ class Archive:
 		if self._data is not None:
 			self._data.close()
 
-	def get_file_data(self, size: int, offset: int):
+	def get_file_data(self, size: int, offset: int) -> bytes:
 		if self._data is None:
 			self._data = self.cdn.download_data(self.key)
 
@@ -29,7 +29,7 @@ class Archive:
 		data = self._data.read(size)
 		return data
 
-	def get_file(self, key: str, size: int, offset: int, verify: bool=False):
+	def get_file(self, key: str, size: int, offset: int, verify: bool=False) -> bytes:
 		data = self.get_file_data(size, offset)
 		decoded_data = BLTEDecoder(BytesIO(data), key, verify=verify)
 		return b"".join(decoded_data.blocks)
@@ -61,7 +61,7 @@ class ArchiveIndex:
 		return f"<{self.__class__.__name__}: {self.key}>"
 
 	@property
-	def items(self):
+	def items(self) -> Iterable[Tuple[str, int, int]]:
 		self.data.seek(0)
 
 		bytes_left_in_block = self.block_size_kb * 1024
@@ -90,7 +90,7 @@ class ArchiveGroupIndex:
 
 		self.archive_indices = archive_indices
 		self.key = key
-		self.items = sorted(
+		self.items: Iterable[Tuple[str, int, int, int]] = sorted(
 			(key, size, archive_id, offset)
 			for archive_id, archive_index in enumerate(self.archive_indices)
 			for key, size, offset in archive_index.items
@@ -120,7 +120,7 @@ class ArchiveGroup:
 		return f"<{self.__class__.__name__}: {self.key}>"
 
 	@property
-	def files(self):
+	def files(self) -> Iterable[bytes]:
 		for file_info in self.merged_index.items:
 			yield self.get_file(*file_info)
 
@@ -137,8 +137,8 @@ class ArchiveGroup:
 			)
 		return self._merged_index
 
-	def has_file(self, key: str):
+	def has_file(self, key: str) -> bool:
 		return key in self.merged_index.item_keys
 
-	def get_file(self, key: str, size: int, archive_id: int, offset: int):
+	def get_file(self, key: str, size: int, archive_id: int, offset: int) -> bytes:
 		return self.archives[archive_id].get_file(key, size, offset)

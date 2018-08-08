@@ -1,13 +1,14 @@
 import struct
 from binascii import hexlify
 from io import BytesIO
+from typing import Iterable
 
 
 class EncodingFile:
 	def __init__(self, data: bytes) -> None:
 		self.parse_header(data)
 
-	def parse_header(self, data: bytes):
+	def parse_header(self, data: bytes) -> None:
 		header_size = 22
 		header = BytesIO(data[:header_size])
 
@@ -46,7 +47,7 @@ class EncodingFile:
 		))
 
 	@property
-	def keys(self):
+	def keys(self) -> Iterable[str]:
 		self.encoding_page_table.seek(0)
 		page_size = 1024 * self.encoding_page_table_page_size
 		for i in range(self.encoding_page_table_page_count):

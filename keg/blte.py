@@ -3,6 +3,7 @@ import struct
 import zlib
 from binascii import hexlify
 from io import BytesIO
+from typing import IO, Iterable, List, Tuple
 
 
 # 00000000: 424c 5445 0000 00b4 0f00 0007 0000 0017  BLTE............
@@ -30,7 +31,7 @@ from io import BytesIO
 #                                      ^ second block data
 
 
-def decode_block(data):
+def decode_block(data: bytes) -> bytes:
 	type = data[0]
 
 	if type == b"N"[0]:
@@ -42,10 +43,9 @@ def decode_block(data):
 
 
 class BLTEDecoder:
-	def __init__(self, fp, hash, verify=False):
+	def __init__(self, fp: IO, hash: str, verify: bool=False) -> None:
 		self.fp = fp
-		self.block_table = []
-		self._blocks = []
+		self.block_table: List[Tuple[int, int, str]] = []
 		self._block_index = 0
 		self.hash = hash
 		self.verify = verify
@@ -65,7 +65,7 @@ class BLTEDecoder:
 		block_info = BytesIO(block_info_data)
 		self.parse_block_info(block_info)
 
-	def parse_block_info(self, fp):
+	def parse_block_info(self, fp: IO) -> None:
 		num_blocks, = struct.unpack(">i", b"\x00" + fp.read(3))
 		for i in range(num_blocks):
 			encoded_size, decoded_size, md5 = struct.unpack(
@@ -76,12 +76,12 @@ class BLTEDecoder:
 			)
 
 	@property
-	def blocks(self):
+	def blocks(self) -> Iterable[bytes]:
 		for encoded_block in self.encoded_blocks:
 			yield decode_block(encoded_block)
 
 	@property
-	def encoded_blocks(self):
+	def encoded_blocks(self) -> Iterable[bytes]:
 		if self._block_index:
 			raise RuntimeError(
 				"BLTE.blocks has already been iterated over. "

@@ -1,8 +1,11 @@
-class BlizIni:
-	def __init__(self):
-		self.items = {}
+from typing import Dict
 
-	def read_string(self, text: str):
+
+class BlizIni:
+	def __init__(self) -> None:
+		self.items: Dict[str, str] = {}
+
+	def read_string(self, text: str) -> None:
 		for line in text.splitlines():
 			line = line.strip()
 			if not line or line.startswith("#"):
@@ -17,7 +20,7 @@ class BlizIni:
 				self.items[key] = value
 
 
-def load(text: str):
+def load(text: str) -> Dict[str, str]:
 	p = BlizIni()
 	p.read_string(text)
 

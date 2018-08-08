@@ -2,7 +2,11 @@ import csv
 from typing import Dict, List
 
 
-def load(fp) -> List[Dict[str, str]]:
+PSVRow = Dict[str, str]
+PSVFile = List[PSVRow]
+
+
+def load(fp) -> PSVFile:
 	values = csv.DictReader(
 		filter(lambda row: not row.startswith("#"), fp),
 		delimiter="|"

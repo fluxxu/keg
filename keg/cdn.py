@@ -54,7 +54,7 @@ class RemoteCDN(BaseCDN):
 		self.server = cdn.all_servers[0]
 		self.path = cdn.path
 
-	def get_item(self, path: str):
+	def get_item(self, path: str) -> IO:
 		url = f"{self.server}/{self.path}{path}"
 		print(f"HTTP GET {url}")
 		resp = requests.get(url, stream=True)
@@ -70,7 +70,7 @@ class LocalCDN(BaseCDN):
 	def get_full_path(self, path: str) -> str:
 		return os.path.join(self.base_dir, path.lstrip("/"))
 
-	def get_item(self, path: str):
+	def get_item(self, path: str) -> IO:
 		return open(self.get_full_path(path), "rb")
 
 	def exists(self, path: str) -> bool:
@@ -84,7 +84,7 @@ class CacheableCDNWrapper(BaseCDN):
 		self.local_cdn = LocalCDN(base_dir)
 		self.remote_cdn = RemoteCDN(cdns_response)
 
-	def get_item(self, path: str):
+	def get_item(self, path: str) -> IO:
 		if not self.local_cdn.exists(path):
 			cache_file_path = self.local_cdn.get_full_path(path)
 			f = HTTPCacheWrapper(self.remote_cdn.get_item(path), cache_file_path)
@@ -106,7 +106,7 @@ class CacheableCDNWrapper(BaseCDN):
 
 
 class HTTPCacheWrapper:
-	def __init__(self, obj, path: str) -> None:
+	def __init__(self, obj: IO, path: str) -> None:
 		self._obj = obj
 
 		dir_path = os.path.dirname(path)

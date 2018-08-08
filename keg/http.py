@@ -7,7 +7,7 @@ from . import psv
 
 
 class CDNs:
-	def __init__(self, values: dict) -> None:
+	def __init__(self, values: psv.PSVRow) -> None:
 		self._values = values
 		self.name = values.get("Name", "")
 		self.path = values.get("Path", "")
@@ -30,7 +30,7 @@ class CDNs:
 
 
 class Versions:
-	def __init__(self, values: dict) -> None:
+	def __init__(self, values: psv.PSVRow) -> None:
 		self._values = values
 		self.build_config = values.get("BuildConfig", "")
 		self.build_id = values.get("BuildId", "")
@@ -48,7 +48,7 @@ class HttpBackend:
 	def __init__(self, remote: str) -> None:
 		self.remote = remote
 
-	def request_path(self, path: str):
+	def request_path(self, path: str) -> requests.Response:
 		url = self.remote + path
 		return requests.get(url)
 
@@ -58,7 +58,7 @@ class HttpBackend:
 	def get_versions(self) -> List[Versions]:
 		return [Versions(row) for row in self.get_psv("/versions")]
 
-	def get_psv(self, path: str) -> dict:
+	def get_psv(self, path: str) -> psv.PSVFile:
 		resp = self.request_path(path)
 		return psv.load(
 			StringIO(resp.content.decode())
