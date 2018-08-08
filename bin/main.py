@@ -123,11 +123,18 @@ class App:
 		for index in indices_to_fetch:
 			cdn_wrapper.fetch_index(index)
 
+		archives_to_fetch = set()
 		loose_files_to_fetch = set()
 
 		for version in versions:
 			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
 			# get the archive list
+
+			for archive in cdn_config.archives:
+				if not cdn_wrapper.has_data(archive):
+					archives_to_fetch.add(archive)
+
+			# Create the merged archive group
 			archive_group = ArchiveGroup(
 				cdn_config.archives,
 				cdn_config.archive_group,
@@ -146,9 +153,13 @@ class App:
 				if not archive_group.has_file(encoding_key) and not cdn_wrapper.has_data(encoding_key):
 					loose_files_to_fetch.add(encoding_key)
 
+		print(f"Fetching archives... ({len(archives_to_fetch)} items remaining)")
+		for key in archives_to_fetch:
+			cdn_wrapper.download_data(key)
+
 		print(f"Fetching loose files... ({len(loose_files_to_fetch)} items remaining)")
-		for encoding_key in loose_files_to_fetch:
-			cdn_wrapper.download_data(encoding_key)
+		for key in loose_files_to_fetch:
+			cdn_wrapper.download_data(key)
 
 		# whats left?
 		# metadata:
