@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 from argparse import ArgumentParser
-from typing import Iterable, List
+from typing import List, Set
 
 import toml
 from tqdm import tqdm
@@ -23,13 +23,20 @@ class App:
 	def remotes(self) -> List[str]:
 		return self.config["keg"].get("remotes", [])
 
-	def _download(self, message: str, iterable: Iterable[str], callback):
+	def _download(self, message: str, iterable: Set[str], callback):
 		if not iterable:
 			print(message, "Up-to-date.")
 			return
 
-		for key in tqdm(iterable, unit="files", ncols=79):
+		bar = tqdm(unit="files", ncols=0, leave=False, total=len(iterable))
+
+		for key in iterable:
+			bar.set_description(message + " " + key)
 			callback(key)
+			bar.update()
+		bar.close()
+
+		print(message, "Done.")
 
 	def init_config(self):
 		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
