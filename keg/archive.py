@@ -94,6 +94,8 @@ class ArchiveGroupIndex:
 			for archive_id, archive_index in enumerate(self.archive_indices)
 			for key, size, offset in archive_index.items
 		)
+		# Keep a copy of all the item keys for efficient retrieval of loose files
+		self.item_keys = set(k[0] for k in self.items)
 
 		# TODO: write to disk /impl write method, then verify
 
