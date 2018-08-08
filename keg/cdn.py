@@ -20,6 +20,10 @@ class BaseCDN:
 		with self.get_item(f"/config/{partition_hash(hash)}") as resp:
 			return resp.read()
 
+	def fetch_index(self, hash: str) -> bytes:
+		with self.get_item(f"/data/{partition_hash(hash)}.index") as resp:
+			return resp.read()
+
 	def load_config(self, hash: str) -> dict:
 		return blizini.load(self.fetch_config(hash).decode())
 
@@ -32,9 +36,8 @@ class BaseCDN:
 	def get_patch_config(self, hash: str) -> PatchConfig:
 		return PatchConfig(self.load_config(hash))
 
-	def download_data_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
-		with self.get_item(f"/data/{partition_hash(hash)}.index") as resp:
-			return ArchiveIndex(resp.read(), hash, verify=verify)
+	def get_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
+		return ArchiveIndex(self.fetch_index(hash), hash, verify=verify)
 
 	def download_blte_data(self, hash: str, verify: bool=False) -> bytes:
 		with self.get_item(f"/data/{partition_hash(hash)}") as resp:

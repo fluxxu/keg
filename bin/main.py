@@ -110,6 +110,17 @@ class App:
 		for config in config_to_fetch:
 			cdn_wrapper.fetch_config(config)
 
+		indices_to_fetch = set()
+		for version in versions:
+			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
+			for archive_key in cdn_config.archives:
+				if not cdn_wrapper.has_index(archive_key):
+					indices_to_fetch.add(archive_key)
+
+		print(f"Fetching indices... ({len(indices_to_fetch)} items remaining)")
+		for index in indices_to_fetch:
+			cdn_wrapper.fetch_index(index)
+
 		# Fetch data for each version
 		for version in versions:
 			print(f"Downloading {version.region}...")
@@ -136,13 +147,6 @@ class App:
 			cdn_config.archive_group,
 			cdn_wrapper
 		)
-
-		print("Resolving archives")
-		for archive_key in cdn_config.archives:
-			archive_index = cdn_wrapper.download_data_index(archive_key)
-
-			for item in archive_index.items:
-				pass
 
 		# Download loose files
 		for encoding_key in encoding_file.keys:

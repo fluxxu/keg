@@ -127,7 +127,7 @@ class ArchiveGroup:
 	@property
 	def indices(self) -> Iterable[ArchiveIndex]:
 		for archive_key in self.archive_keys:
-			yield self.cdn.download_data_index(archive_key, verify=self.verify)
+			yield self.cdn.get_index(archive_key, verify=self.verify)
 
 	@property
 	def merged_index(self) -> ArchiveGroupIndex:
