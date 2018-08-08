@@ -134,5 +134,8 @@ class ArchiveGroup:
 			self.indices, self.key, verify=self.verify
 		)
 
+	def has_file(self, key: str):
+		return key in self.merged_index.item_keys
+
 	def get_file(self, key: str, size: int, archive_id: int, offset: int):
 		return self.archives[archive_id].get_file(key, size, offset)
