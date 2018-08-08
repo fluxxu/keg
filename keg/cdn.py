@@ -133,11 +133,11 @@ class HTTPCacheWrapper:
 
 		return self._obj.close()
 
-	def read(self, bytes: int=-1) -> bytes:
-		if bytes == -1:
+	def read(self, size: int=-1) -> bytes:
+		if size == -1:
 			ret = self._obj.read()
 		else:
-			ret = self._obj.read(bytes)
+			ret = self._obj.read(size)
 		if ret:
 			self._cache_file.write(ret)
 		return ret
