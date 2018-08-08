@@ -86,6 +86,18 @@ class CacheableCDNWrapper(BaseCDN):
 
 		return self.local_cdn.get_item(path)
 
+	def has_config(self, key: str) -> bool:
+		path = f"/config/{partition_hash(key)}"
+		return self.local_cdn.exists(path)
+
+	def has_data(self, key: str) -> bool:
+		path = f"/data/{partition_hash(key)}"
+		return self.local_cdn.exists(path)
+
+	def has_index(self, key: str) -> bool:
+		path = f"/config/{partition_hash(key)}.index"
+		return self.local_cdn.exists(path)
+
 
 class HTTPCacheWrapper:
 	def __init__(self, obj, path: str) -> None:
