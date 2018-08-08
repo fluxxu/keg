@@ -121,14 +121,14 @@ class App:
 		from keg.archive import ArchiveGroup
 		from keg.encoding import EncodingFile
 
-		build_config = cdn_wrapper.download_build_config(version.build_config)
-		# patch_config = cdn.download_patch_config(build_config.patch_config)
+		build_config = cdn_wrapper.get_build_config(version.build_config)
+		# patch_config = cdn.get_patch_config(build_config.patch_config)
 		content_key, encoding_key = build_config.encodings  # TODO verify content_key
 
 		encoding_file = EncodingFile(
 			cdn_wrapper.download_blte_data(encoding_key)
 		)
-		cdn_config = cdn_wrapper.download_cdn_config(version.cdn_config)
+		cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
 
 		# get the archive list
 		archive_group = ArchiveGroup(

@@ -23,13 +23,13 @@ class BaseCDN:
 	def load_config(self, hash: str) -> dict:
 		return blizini.load(self.fetch_config(hash).decode())
 
-	def download_build_config(self, hash: str) -> BuildConfig:
+	def get_build_config(self, hash: str) -> BuildConfig:
 		return BuildConfig(self.load_config(hash))
 
-	def download_cdn_config(self, hash: str) -> CDNConfig:
+	def get_cdn_config(self, hash: str) -> CDNConfig:
 		return CDNConfig(self.load_config(hash))
 
-	def download_patch_config(self, hash: str) -> PatchConfig:
+	def get_patch_config(self, hash: str) -> PatchConfig:
 		return PatchConfig(self.load_config(hash))
 
 	def download_data_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
