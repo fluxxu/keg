@@ -90,6 +90,18 @@ class App:
 		versions = keg.get_versions()
 		print("Regions available:", ", ".join(version.region for version in versions))
 
+		config_to_fetch = set()
+
+		for version in versions:
+			if not cdn_wrapper.has_config(version.build_config):
+				config_to_fetch.add(version.build_config)
+			if not cdn_wrapper.has_config(version.cdn_config):
+				config_to_fetch.add(version.cdn_config)
+
+		print(f"Fetching config... ({len(config_to_fetch)} items remaining)")
+		for config in config_to_fetch:
+			cdn_wrapper.fetch_config(config)
+
 		# Fetch data for each version
 		for version in versions:
 			print(f"Downloading {version.region}...")
@@ -98,12 +110,17 @@ class App:
 		print("Done.")
 
 	def _fetch_version(self, cdn_wrapper, version):
-		from keg.encoding import EncodingFile
 		from keg.archive import ArchiveGroup
+		from keg.encoding import EncodingFile
 
 		build_config = cdn_wrapper.download_build_config(version.build_config)
+		# patch_config = cdn.download_patch_config(build_config.patch_config)
+		content_key, encoding_key = build_config.encodings  # TODO verify content_key
+
+		encoding_file = EncodingFile(
+			cdn_wrapper.download_blte_data(encoding_key)
+		)
 		cdn_config = cdn_wrapper.download_cdn_config(version.cdn_config)
-		patch_config = cdn_wrapper.download_patch_config(build_config.patch_config)
 
 		# get the archive list
 		archive_group = ArchiveGroup(
@@ -118,10 +135,6 @@ class App:
 
 			for item in archive_index.items:
 				pass
-
-		content_key, encoding_key = build_config.encodings  # TODO verify content_key
-		encoding_data = cdn_wrapper.download_blte_data(encoding_key)
-		encoding_file = EncodingFile(encoding_data)
 
 		# Download loose files
 		for encoding_key in encoding_file.keys:

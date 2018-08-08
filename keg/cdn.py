@@ -16,18 +16,21 @@ class BaseCDN:
 	def get_item(self, path: str):
 		raise NotImplementedError()
 
+	def fetch_config(self, hash: str) -> bytes:
+		with self.get_item(f"/config/{partition_hash(hash)}") as resp:
+			return resp.read()
+
+	def load_config(self, hash: str) -> dict:
+		return blizini.load(self.fetch_config(hash).decode())
+
 	def download_build_config(self, hash: str) -> BuildConfig:
-		return BuildConfig(self.download_config(hash))
+		return BuildConfig(self.load_config(hash))
 
 	def download_cdn_config(self, hash: str) -> CDNConfig:
-		return CDNConfig(self.download_config(hash))
+		return CDNConfig(self.load_config(hash))
 
 	def download_patch_config(self, hash: str) -> PatchConfig:
-		return PatchConfig(self.download_config(hash))
-
-	def download_config(self, hash: str) -> dict:
-		with self.get_item(f"/config/{partition_hash(hash)}") as resp:
-			return blizini.load(resp.read().decode())
+		return PatchConfig(self.load_config(hash))
 
 	def download_data_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
 		with self.get_item(f"/data/{partition_hash(hash)}.index") as resp:
