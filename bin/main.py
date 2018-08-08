@@ -149,10 +149,15 @@ class App:
 		)
 
 		# Download loose files
+		loose_files_to_fetch = set()
 		for encoding_key in encoding_file.keys:
-			if not archive_group.has_file(encoding_key):
+			if not archive_group.has_file(encoding_key) and not cdn_wrapper.has_data(encoding_key):
 				print(f"Fetching {encoding_key}")
-				cdn_wrapper.download_data(encoding_key)
+				loose_files_to_fetch.add(encoding_key)
+
+		print(f"Fetching loose files... ({len(loose_files_to_fetch)} items remaining)")
+		for encoding_key in loose_files_to_fetch:
+			cdn_wrapper.download_data(encoding_key)
 
 		# whats left?
 		# metadata:
