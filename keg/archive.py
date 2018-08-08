@@ -110,6 +110,7 @@ class ArchiveGroup:
 		self.key = key
 		self.cdn = cdn
 		self.verify = verify
+		self._merged_index: Optional[ArchiveGroupIndex] = None
 
 		self.archives: List[Archive] = [
 			Archive(archive_key, cdn) for archive_key in archive_keys
@@ -130,9 +131,11 @@ class ArchiveGroup:
 
 	@property
 	def merged_index(self) -> ArchiveGroupIndex:
-		return ArchiveGroupIndex(
-			self.indices, self.key, verify=self.verify
-		)
+		if not self._merged_index:
+			self._merged_index = ArchiveGroupIndex(
+				self.indices, self.key, verify=self.verify
+			)
+		return self._merged_index
 
 	def has_file(self, key: str):
 		return key in self.merged_index.item_keys
