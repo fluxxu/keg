@@ -54,13 +54,12 @@ class RemoteCDN(BaseCDN):
 		self.server = cdn.all_servers[0]
 		self.path = cdn.path
 
-	def get_item(self, path: str) -> IO:
+	def get_response(self, path: str) -> requests.Response:
 		url = f"{self.server}/{self.path}{path}"
-		print(f"HTTP GET {url}")
-		resp = requests.get(url, stream=True)
-		print(f"Downloading {resp.headers['content-length']} bytes...")
+		return requests.get(url, stream=True)
 
-		return resp.raw
+	def get_item(self, path: str) -> IO:
+		return self.get_response(path).raw
 
 
 class LocalCDN(BaseCDN):
@@ -87,7 +86,8 @@ class CacheableCDNWrapper(BaseCDN):
 	def get_item(self, path: str) -> IO:
 		if not self.local_cdn.exists(path):
 			cache_file_path = self.local_cdn.get_full_path(path)
-			f = HTTPCacheWrapper(self.remote_cdn.get_item(path), cache_file_path)
+			response = self.remote_cdn.get_response(path)
+			f = HTTPCacheWrapper(response, cache_file_path)
 			f.close()
 
 		return self.local_cdn.get_item(path)
@@ -106,8 +106,8 @@ class CacheableCDNWrapper(BaseCDN):
 
 
 class HTTPCacheWrapper:
-	def __init__(self, obj: IO, path: str) -> None:
-		self._obj = obj
+	def __init__(self, response: requests.Response, path: str) -> None:
+		self._response = response.raw
 
 		dir_path = os.path.dirname(path)
 		if not os.path.exists(dir_path):
@@ -131,13 +131,13 @@ class HTTPCacheWrapper:
 		# Atomic write&move; make sure there's no partially-written caches.
 		os.rename(self._temp_path, self._real_path)
 
-		return self._obj.close()
+		return self._response.close()
 
 	def read(self, size: int=-1) -> bytes:
 		if size == -1:
-			ret = self._obj.read()
+			ret = self._response.read()
 		else:
-			ret = self._obj.read(size)
+			ret = self._response.read(size)
 		if ret:
 			self._cache_file.write(ret)
 		return ret
