@@ -30,6 +30,9 @@ class App:
 				self.config = toml.load(f)
 			assert "keg" in self.config
 			assert self.config["keg"].get("config_version") == 1
+
+			assert "ngdp" in self.config
+			assert self.config["ngdp"].get("hash_function") == "md5"
 		else:
 			self.config = {}
 
@@ -41,7 +44,12 @@ class App:
 			print(f"Reinitialized in {self.ngdp_path}")
 
 		if not os.path.exists(self.config_path):
-			self.config["keg"] = {"config_version": 1}
+			self.config["keg"] = {
+				"config_version": 1,
+			}
+			self.config["ngdp"] = {
+				"hash_function": "md5",
+			}
 			self.save_config()
 
 	def save_config(self):
