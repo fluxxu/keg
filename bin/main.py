@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import os
 from argparse import ArgumentParser
-from typing import List
+from typing import Iterable, List
 
 import toml
+from tqdm import tqdm
 
 
 DEFAULT_REMOTE = "http://us.patch.battle.net:1119/hsb"
@@ -21,6 +22,14 @@ class App:
 	@property
 	def remotes(self) -> List[str]:
 		return self.config["keg"].get("remotes", [])
+
+	def _download(self, message: str, iterable: Iterable[str], callback):
+		if not iterable:
+			print(message, "Up-to-date.")
+			return
+
+		for key in tqdm(iterable, unit="files"):
+			callback(key)
 
 	def init_config(self):
 		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
@@ -108,9 +117,7 @@ class App:
 			if not cdn_wrapper.has_config(version.cdn_config):
 				config_to_fetch.add(version.cdn_config)
 
-		print(f"Fetching config... ({len(config_to_fetch)} items remaining)")
-		for config in config_to_fetch:
-			cdn_wrapper.fetch_config(config)
+		self._download("Fetching config...", config_to_fetch, cdn_wrapper.fetch_config)
 
 		indices_to_fetch = set()
 		for version in versions:
@@ -119,13 +126,10 @@ class App:
 				if not cdn_wrapper.has_index(archive_key):
 					indices_to_fetch.add(archive_key)
 
-		print(f"Fetching indices... ({len(indices_to_fetch)} items remaining)")
-		for index in indices_to_fetch:
-			cdn_wrapper.fetch_index(index)
+		self._download("Fetching indices...", indices_to_fetch, cdn_wrapper.fetch_index)
 
 		archives_to_fetch = set()
 		loose_files_to_fetch = set()
-
 		for version in versions:
 			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
 			# get the archive list
@@ -153,13 +157,8 @@ class App:
 				if not archive_group.has_file(encoding_key) and not cdn_wrapper.has_data(encoding_key):
 					loose_files_to_fetch.add(encoding_key)
 
-		print(f"Fetching archives... ({len(archives_to_fetch)} items remaining)")
-		for key in archives_to_fetch:
-			cdn_wrapper.download_data(key)
-
-		print(f"Fetching loose files... ({len(loose_files_to_fetch)} items remaining)")
-		for key in loose_files_to_fetch:
-			cdn_wrapper.download_data(key)
+		self._download("Fetching archives...", archives_to_fetch, cdn_wrapper.download_data)
+		self._download("Fetching loose files...", loose_files_to_fetch, cdn_wrapper.download_data)
 
 		# whats left?
 		# metadata:
