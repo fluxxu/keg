@@ -16,36 +16,36 @@ class BaseCDN:
 	def get_item(self, path: str):
 		raise NotImplementedError()
 
-	def fetch_config(self, hash: str) -> bytes:
-		with self.get_item(f"/config/{partition_hash(hash)}") as resp:
+	def fetch_config(self, key: str) -> bytes:
+		with self.get_item(f"/config/{partition_hash(key)}") as resp:
 			return resp.read()
 
-	def fetch_index(self, hash: str) -> bytes:
-		with self.get_item(f"/data/{partition_hash(hash)}.index") as resp:
+	def fetch_index(self, key: str) -> bytes:
+		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
 			return resp.read()
 
-	def load_config(self, hash: str) -> dict:
-		return blizini.load(self.fetch_config(hash).decode())
+	def load_config(self, key: str) -> dict:
+		return blizini.load(self.fetch_config(key).decode())
 
-	def get_build_config(self, hash: str) -> BuildConfig:
-		return BuildConfig(self.load_config(hash))
+	def get_build_config(self, key: str) -> BuildConfig:
+		return BuildConfig(self.load_config(key))
 
-	def get_cdn_config(self, hash: str) -> CDNConfig:
-		return CDNConfig(self.load_config(hash))
+	def get_cdn_config(self, key: str) -> CDNConfig:
+		return CDNConfig(self.load_config(key))
 
-	def get_patch_config(self, hash: str) -> PatchConfig:
-		return PatchConfig(self.load_config(hash))
+	def get_patch_config(self, key: str) -> PatchConfig:
+		return PatchConfig(self.load_config(key))
 
-	def get_index(self, hash: str, verify: bool=False) -> ArchiveIndex:
-		return ArchiveIndex(self.fetch_index(hash), hash, verify=verify)
+	def get_index(self, key: str, verify: bool=False) -> ArchiveIndex:
+		return ArchiveIndex(self.fetch_index(key), key, verify=verify)
 
-	def download_blte_data(self, hash: str, verify: bool=False) -> bytes:
-		with self.get_item(f"/data/{partition_hash(hash)}") as resp:
-			data = blte.BLTEDecoder(resp, hash, verify=verify)
+	def download_blte_data(self, key: str, verify: bool=False) -> bytes:
+		with self.get_item(f"/data/{partition_hash(key)}") as resp:
+			data = blte.BLTEDecoder(resp, key, verify=verify)
 			return b"".join(data.blocks)
 
-	def download_data(self, hash: str) -> IO:
-		return self.get_item(f"/data/{partition_hash(hash)}")
+	def download_data(self, key: str) -> IO:
+		return self.get_item(f"/data/{partition_hash(key)}")
 
 
 class RemoteCDN(BaseCDN):
