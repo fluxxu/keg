@@ -50,7 +50,6 @@ class HttpBackend:
 
 	def request_path(self, path: str):
 		url = self.remote + path
-		print(url)
 		return requests.get(url)
 
 	def get_cdns(self) -> List[CDNs]:

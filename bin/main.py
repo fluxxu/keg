@@ -54,72 +54,100 @@ class App:
 		self.config["keg"]["remotes"].append(remote)
 		self.save_config()
 
-	def run(self):
+	def fetch(self, remote: str):
 		from keg import Keg
-		from keg.encoding import EncodingFile
 		from keg.cdn import CacheableCDNWrapper
 
-		self.init_repo()
-		if DEFAULT_REMOTE not in self.remotes:
-			self.add_remote(DEFAULT_REMOTE)
+		print(f"Fetching {remote}")
 
-		keg = Keg(self.remotes[0])
-		versions = keg.get_versions()
+		keg = Keg(remote)
+
+		# keg fetch
+		# 1. get the version
+		# 2. get the cdns
+		# 3. pick a cdn..? / keep the other ones as fallback
+		# 4. pull the build config
+		# 5. pull the cdn config
+		# 6. pull the patch config
+		# # 7. pull the product config (?)
+		# 8. pull encoding file (which we got from build_config), if not resolved yet
+		# 9. download all the archive indices
+		# 10. do stuff for patch files
+		# Finally... resolve all dangling data references
+
+		# Look up all available CDNs
 		cdns = keg.get_cdns()
+		print("CDNs available:", ", ".join(cdn.name for cdn in cdns))
 
-		# pick a cdn
+		# Pick a CDN
 		assert cdns
 		cdn = cdns[0]
+		print(f"Using {cdn.name}")
 
 		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.objects_path)
 
+		# Find all available versions
+		versions = keg.get_versions()
+		print("Regions available:", ", ".join(version.region for version in versions))
+
+		# Fetch data for each version
 		for version in versions:
-			# BuildConfig: http://blzddist1-a.akamaihd.net/tpr/hs/config/6a/5f/6a5f9d058ac7c519d929571a64e4ef3d
-			# CDNConfig: http://blzddist1-a.akamaihd.net/tpr/hs/config/17/8c/178ca9764fb469eccbbaeaf55b280336
+			print(f"Downloading {version.region}...")
+			self._fetch_version(cdn_wrapper, version)
 
-			build_config = cdn_wrapper.download_build_config(version.build_config)
-			cdn_config = cdn_wrapper.download_cdn_config(version.cdn_config)
-			break
+		print("Done.")
 
-		content_key, encoding_key = build_config.encodings
+	def _fetch_version(self, cdn_wrapper, version):
+		from keg.encoding import EncodingFile
+		from keg.archive import ArchiveGroup
 
-		encoding_data = cdn_wrapper.download_blte_data(encoding_key)
-		encoding_file = EncodingFile(encoding_data)
+		build_config = cdn_wrapper.download_build_config(version.build_config)
+		cdn_config = cdn_wrapper.download_cdn_config(version.cdn_config)
+		patch_config = cdn_wrapper.download_patch_config(build_config.patch_config)
 
 		# get the archive list
-		archive_group = ArchiveGroup(cdn_config.archives, cdn_config.archive_group)
+		archive_group = ArchiveGroup(
+			cdn_config.archives,
+			cdn_config.archive_group,
+			cdn_wrapper
+		)
 
-		# example key
-		encoding_key = next(encoding_file.keys)
-
+		print("Resolving archives")
 		for archive_key in cdn_config.archives:
 			archive_index = cdn_wrapper.download_data_index(archive_key)
 
 			for item in archive_index.items:
-				print(item)
+				pass
 
-			# archive = ArchiveFile(archive_key)
+		content_key, encoding_key = build_config.encodings  # TODO verify content_key
+		encoding_data = cdn_wrapper.download_blte_data(encoding_key)
+		encoding_file = EncodingFile(encoding_data)
 
-		key = archive_group.resolve_encoding_key(encoding_key)
-		if key:
-			# key resolved in the archive file
-			cdn_wrapper.download_blte_data(key)
-		else:
-			# loose file
-			cdn_wrapper.download_blte_data(encoding_key)
+		# Download loose files
+		for encoding_key in encoding_file.keys:
+			if not archive_group.has_file(encoding_key):
+				print(f"Fetching {encoding_key}")
+				cdn_wrapper.download_data(encoding_key)
 
 		# whats left?
 		# metadata:
 		# - root
 		# - install
-		# - archive indices
 		# - patch archive indices
 		# - patch files
 		#   - patch manifest
 		#   - files referenced by patch
-		# files:
-		# - archives
-		# - loose files
+
+	def fetch_all(self):
+		for remote in self.remotes:
+			self.fetch(remote)
+
+	def run(self):
+		self.init_repo()  # keg init
+		if DEFAULT_REMOTE not in self.remotes:
+			self.add_remote(DEFAULT_REMOTE)  # keg remote add http://us.patch.battle.net:1119/hsb
+
+		self.fetch_all()
 
 		return 0
 
