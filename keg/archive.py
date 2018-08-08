@@ -8,8 +8,9 @@ from .blte import BLTEDecoder
 
 
 class Archive:
-	def __init__(self, key: str) -> None:
+	def __init__(self, key: str, cdn) -> None:
 		self.key = key
+		self.cdn = cdn
 		self._data: Optional[IO] = None
 
 	def __repr__(self):
@@ -19,17 +20,17 @@ class Archive:
 		if self._data is not None:
 			self._data.close()
 
-	def get_file_data(self, size: int, offset: int, cdn):
+	def get_file_data(self, size: int, offset: int):
 		if self._data is None:
-			self._data = cdn.download_data(self.key)
+			self._data = self.cdn.download_data(self.key)
 
 		assert self._data
 		self._data.seek(offset)
 		data = self._data.read(size)
 		return data
 
-	def get_file(self, key: str, size: int, offset: int, cdn, verify: bool=False):
-		data = self.get_file_data(size, offset, cdn)
+	def get_file(self, key: str, size: int, offset: int, verify: bool=False):
+		data = self.get_file_data(size, offset)
 		decoded_data = BLTEDecoder(BytesIO(data), key, verify=verify)
 		return b"".join(decoded_data.blocks)
 
@@ -104,30 +105,31 @@ class ArchiveGroupIndex:
 
 
 class ArchiveGroup:
-	def __init__(self, archive_keys: List[str], key: str, verify: bool=False) -> None:
+	def __init__(self, archive_keys: List[str], key: str, cdn, verify: bool=False) -> None:
 		self.archive_keys = archive_keys
 		self.key = key
+		self.cdn = cdn
 		self.verify = verify
 
 		self.archives: List[Archive] = [
-			Archive(archive_key) for archive_key in archive_keys
+			Archive(archive_key, cdn) for archive_key in archive_keys
 		]
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key}>"
 
-	def get_file(self, key: str, size: int, archive_id: int, offset: int, cdn):
-		return self.archives[archive_id].get_file(key, size, offset, cdn)
+	def get_file(self, key: str, size: int, archive_id: int, offset: int):
+		return self.archives[archive_id].get_file(key, size, offset)
 
-	def get_files(self, cdn):
-		for file_info in self.get_merged_index(cdn).items:
-			yield self.get_file(*file_info, cdn)
+	def get_files(self):
+		for file_info in self.get_merged_index().items:
+			yield self.get_file(*file_info)
 
-	def get_indices(self, cdn) -> Iterable[ArchiveIndex]:
+	def get_indices(self) -> Iterable[ArchiveIndex]:
 		for archive_key in self.archive_keys:
-			yield cdn.download_data_index(archive_key, verify=self.verify)
+			yield self.cdn.download_data_index(archive_key, verify=self.verify)
 
-	def get_merged_index(self, cdn) -> ArchiveGroupIndex:
+	def get_merged_index(self) -> ArchiveGroupIndex:
 		return ArchiveGroupIndex(
-			self.get_indices(cdn), self.key, verify=self.verify
+			self.get_indices(), self.key, verify=self.verify
 		)
