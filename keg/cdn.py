@@ -101,7 +101,7 @@ class CacheableCDNWrapper(BaseCDN):
 		return self.local_cdn.exists(path)
 
 	def has_index(self, key: str) -> bool:
-		path = f"/config/{partition_hash(key)}.index"
+		path = f"/data/{partition_hash(key)}.index"
 		return self.local_cdn.exists(path)
 
 
