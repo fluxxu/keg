@@ -64,6 +64,8 @@ class App:
 
 	def fetch(self, remote: str):
 		from keg import Keg
+		from keg.archive import ArchiveGroup
+		from keg.encoding import EncodingFile
 		from keg.cdn import CacheableCDNWrapper
 
 		print(f"Fetching {remote}")
@@ -121,39 +123,28 @@ class App:
 		for index in indices_to_fetch:
 			cdn_wrapper.fetch_index(index)
 
-		# Fetch data for each version
-		for version in versions:
-			print(f"Downloading {version.region}...")
-			self._fetch_version(cdn_wrapper, version)
-
-		print("Done.")
-
-	def _fetch_version(self, cdn_wrapper, version):
-		from keg.archive import ArchiveGroup
-		from keg.encoding import EncodingFile
-
-		build_config = cdn_wrapper.get_build_config(version.build_config)
-		# patch_config = cdn.get_patch_config(build_config.patch_config)
-		content_key, encoding_key = build_config.encodings  # TODO verify content_key
-
-		encoding_file = EncodingFile(
-			cdn_wrapper.download_blte_data(encoding_key)
-		)
-		cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
-
-		# get the archive list
-		archive_group = ArchiveGroup(
-			cdn_config.archives,
-			cdn_config.archive_group,
-			cdn_wrapper
-		)
-
-		# Download loose files
 		loose_files_to_fetch = set()
-		for encoding_key in encoding_file.keys:
-			if not archive_group.has_file(encoding_key) and not cdn_wrapper.has_data(encoding_key):
-				print(f"Fetching {encoding_key}")
-				loose_files_to_fetch.add(encoding_key)
+
+		for version in versions:
+			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
+			# get the archive list
+			archive_group = ArchiveGroup(
+				cdn_config.archives,
+				cdn_config.archive_group,
+				cdn_wrapper
+			)
+
+			build_config = cdn_wrapper.get_build_config(version.build_config)
+			# patch_config = cdn.get_patch_config(build_config.patch_config)
+			content_key, encoding_key = build_config.encodings  # TODO verify content_key
+			encoding_file = EncodingFile(
+				cdn_wrapper.download_blte_data(encoding_key)
+			)
+
+			# Download loose files
+			for encoding_key in encoding_file.keys:
+				if not archive_group.has_file(encoding_key) and not cdn_wrapper.has_data(encoding_key):
+					loose_files_to_fetch.add(encoding_key)
 
 		print(f"Fetching loose files... ({len(loose_files_to_fetch)} items remaining)")
 		for encoding_key in loose_files_to_fetch:
@@ -167,6 +158,8 @@ class App:
 		# - patch files
 		#   - patch manifest
 		#   - files referenced by patch
+
+		print("Done.")
 
 	def fetch_all(self):
 		for remote in self.remotes:
