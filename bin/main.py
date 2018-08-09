@@ -20,8 +20,12 @@ class App:
 		self.objects_path = os.path.join(self.ngdp_path, "objects")
 		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
 		self.db_path = os.path.join(self.ngdp_path, "keg.db")
-		self.db = sqlite3.connect(self.db_path)
 		self.init_config()
+
+		if os.path.exists(self.ngdp_path):
+			self.db = sqlite3.connect(self.db_path)
+		else:
+			self.db = None
 
 	@property
 	def remotes(self) -> List[str]:
@@ -72,6 +76,7 @@ class App:
 			}
 			self.save_config()
 
+		self.db = sqlite3.connect(self.db_path)
 		self.db.execute("""
 			CREATE TABLE IF NOT EXISTS responses (
 				remote text,
