@@ -6,12 +6,20 @@ import requests
 from . import psv
 
 
-class CDNs:
-	def __init__(self, values: psv.PSVRow) -> None:
-		self._values = values
-		self.name = values.get("Name", "")
-		self.path = values.get("Path", "")
-		self.config_path = values.get("ConfigPath", "")
+class PSVResponse:
+	def __init__(self, row: psv.PSVRow) -> None:
+		self._row = row
+
+	def __repr__(self):
+		return f"<{self.__class__.__name__}: {self._psv}>"
+
+
+class CDNs(PSVResponse):
+	def __init__(self, row: psv.PSVRow) -> None:
+		super().__init__(row)
+		self.name = row.Name
+		self.path = row.Path
+		self.config_path = row.ConfigPath
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self._values}>"
@@ -22,26 +30,23 @@ class CDNs:
 
 	@property
 	def hosts(self) -> List[str]:
-		return self._values.get("Hosts", "").split()
+		return self._row.Hosts.split()
 
 	@property
 	def servers(self) -> List[str]:
-		return self._values.get("Servers", "").split()
+		return self._row.Servers.split()
 
 
-class Versions:
-	def __init__(self, values: psv.PSVRow) -> None:
-		self._values = values
-		self.build_config = values.get("BuildConfig", "")
-		self.build_id = values.get("BuildId", "")
-		self.cdn_config = values.get("CDNConfig", "")
-		self.keyring = values.get("KeyRing", "")
-		self.product_config = values.get("ProductConfig", "")
-		self.region = values.get("Region", "")
-		self.versions_name = values.get("VersionsName", "")
-
-	def __repr__(self):
-		return f"<{self.__class__.__name__}: {self._values}>"
+class Versions(PSVResponse):
+	def __init__(self, row: psv.PSVRow) -> None:
+		super().__init__(row)
+		self.build_config = row.BuildConfig
+		self.build_id = row.BuildId
+		self.cdn_config = row.CDNConfig
+		self.keyring = row.KeyRing
+		self.product_config = row.ProductConfig
+		self.region = row.Region
+		self.versions_name = row.VersionsName
 
 
 class HttpBackend:
