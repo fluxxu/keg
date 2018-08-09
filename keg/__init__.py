@@ -31,4 +31,20 @@ class Keg(HttpBackend):
 				f.write(data)
 			os.rename(temp_name, cache_path)
 
-		return psvfile
+		table_name = path.strip("/")
+		cursor = self.cache_db.cursor()
+		cursor.execute("""
+			DELETE FROM "%s" where key = ?
+		""" % (table_name), (digest, ))
+
+		insert_tpl = 'INSERT INTO "%s" (key, %s) values (?, %s)' % (
+			table_name,
+			", ".join(psvfile.header),
+			", ".join(["?"] * (len(psvfile.header)))
+		)
+		cursor.executemany(insert_tpl, [
+			[digest, *row] for row in psvfile
+		])
+		self.cache_db.commit()
+
+		return psvfile, data
