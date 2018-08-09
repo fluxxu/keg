@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import sqlite3
 from argparse import ArgumentParser
 from typing import List, Set
 
@@ -18,6 +19,8 @@ class App:
 		self.ngdp_path = os.path.abspath(self.args.ngdp_dir)
 		self.objects_path = os.path.join(self.ngdp_path, "objects")
 		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
+		self.db_path = os.path.join(self.ngdp_path, "keg.db")
+		self.db = sqlite3.connect(self.db_path)
 		self.init_config()
 
 	@property
@@ -68,6 +71,19 @@ class App:
 				"hash_function": "md5",
 			}
 			self.save_config()
+
+		self.db.execute("""
+			CREATE TABLE IF NOT EXISTS versions (
+				key text,
+				BuildConfig text,
+				BuildID text,
+				CDNConfig text,
+				KeyRing text,
+				ProductConfig text,
+				Region text,
+				VersionsName text
+			)
+		""")
 
 	def save_config(self):
 		with open(self.config_path, "w") as f:
