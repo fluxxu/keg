@@ -6,9 +6,10 @@ from .utils import partition_hash
 
 
 class Keg(HttpBackend):
-	def __init__(self, remote: str, cache_dir: str) -> None:
+	def __init__(self, remote: str, cache_dir: str, cache_db) -> None:
 		super().__init__(remote)
 		self.cache_dir = cache_dir
+		self.cache_db = cache_db
 
 	def get_psv(self, path: str):
 		psvfile, data = super().get_psv(path)

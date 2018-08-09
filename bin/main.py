@@ -114,7 +114,7 @@ class App:
 
 		print(f"Fetching {remote}")
 
-		keg = Keg(remote, cache_dir=self.response_cache_dir)
+		keg = Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
 
 		# keg fetch
 		# 1. get the version
