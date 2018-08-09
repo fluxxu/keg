@@ -17,6 +17,7 @@ class App:
 		self.args = p.parse_args(args)
 		self.ngdp_path = os.path.abspath(self.args.ngdp_dir)
 		self.objects_path = os.path.join(self.ngdp_path, "objects")
+		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
 		self.init_config()
 
 	@property
@@ -86,7 +87,7 @@ class App:
 
 		print(f"Fetching {remote}")
 
-		keg = Keg(remote)
+		keg = Keg(remote, cache_dir=self.response_cache_dir)
 
 		# keg fetch
 		# 1. get the version
