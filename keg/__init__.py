@@ -10,10 +10,10 @@ class Keg(HttpBackend):
 		super().__init__(remote)
 		self.cache_dir = cache_dir
 
-	def get_bytes(self, path: str) -> bytes:
-		ret = super().get_bytes(path)
+	def get_psv(self, path: str):
+		psvfile, data = super().get_psv(path)
+		digest = md5(data).hexdigest()
 
-		digest = md5(ret).hexdigest()
 		cache_path = os.path.join(
 			self.cache_dir,
 			path.lstrip("/"),
@@ -27,7 +27,7 @@ class Keg(HttpBackend):
 
 			temp_name = cache_path + ".keg_temp"
 			with open(temp_name, "wb") as f:
-				f.write(ret)
+				f.write(data)
 			os.rename(temp_name, cache_path)
 
-		return ret
+		return psvfile

@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import List
+from typing import List, Tuple
 
 import requests
 
@@ -58,15 +58,16 @@ class HttpBackend:
 		return requests.get(url)
 
 	def get_cdns(self) -> List[CDNs]:
-		return [CDNs(row) for row in self.get_psv("/cdns")]
+		psvfile, _ = self.get_psv("/cdns")
+		return [CDNs(row) for row in psvfile]
 
 	def get_versions(self) -> List[Versions]:
-		return [Versions(row) for row in self.get_psv("/versions")]
+		psvfile, _ = self.get_psv("/versions")
+		return [Versions(row) for row in psvfile]
 
 	def get_bytes(self, path: str) -> bytes:
 		return self.request_path(path).content
 
-	def get_psv(self, path: str) -> psv.PSVFile:
-		return psv.load(
-			StringIO(self.get_bytes(path).decode())
-		)
+	def get_psv(self, path: str) -> Tuple[psv.PSVFile, bytes]:
+		data = self.get_bytes(path)
+		return psv.load(StringIO(data.decode())), data
