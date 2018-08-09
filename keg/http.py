@@ -58,8 +58,10 @@ class HttpBackend:
 	def get_versions(self) -> List[Versions]:
 		return [Versions(row) for row in self.get_psv("/versions")]
 
+	def get_bytes(self, path: str) -> bytes:
+		return self.request_path(path).content
+
 	def get_psv(self, path: str) -> psv.PSVFile:
-		resp = self.request_path(path)
 		return psv.load(
-			StringIO(resp.content.decode())
+			StringIO(self.get_bytes(path).decode())
 		)
