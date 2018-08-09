@@ -73,6 +73,15 @@ class App:
 			self.save_config()
 
 		self.db.execute("""
+			CREATE TABLE IF NOT EXISTS responses (
+				remote text,
+				path text,
+				timestamp int64,
+				digest text
+			)
+		""")
+
+		self.db.execute("""
 			CREATE TABLE IF NOT EXISTS cdns (
 				key text,
 				row int,

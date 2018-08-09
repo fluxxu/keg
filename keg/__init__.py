@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from hashlib import md5
 
 from .http import HttpBackend
@@ -13,6 +14,7 @@ class Keg(HttpBackend):
 
 	def get_psv(self, path: str):
 		psvfile, data = super().get_psv(path)
+		timestamp = int(datetime.now().timestamp())
 		digest = md5(data).hexdigest()
 
 		cache_path = os.path.join(
@@ -45,6 +47,14 @@ class Keg(HttpBackend):
 		cursor.executemany(insert_tpl, [
 			[digest, i, *row] for i, row in enumerate(psvfile)
 		])
+
+		cursor.execute("""
+			INSERT INTO "responses"
+				(remote, path, timestamp, digest)
+			VALUES
+				(?, ?, ?, ?)
+		""", (self.remote, path, timestamp, digest))
+
 		self.cache_db.commit()
 
 		return psvfile, data
