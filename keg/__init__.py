@@ -39,13 +39,13 @@ class Keg(HttpBackend):
 			DELETE FROM "%s" where key = ?
 		""" % (table_name), (digest, ))
 
-		insert_tpl = 'INSERT INTO "%s" (key, row, %s) values (?, ?, %s)' % (
+		insert_tpl = 'INSERT INTO "%s" (remote, key, row, %s) values (?, ?, ?, %s)' % (
 			table_name,
 			", ".join(psvfile.header),
 			", ".join(["?"] * (len(psvfile.header)))
 		)
 		cursor.executemany(insert_tpl, [
-			[digest, i, *row] for i, row in enumerate(psvfile)
+			[self.remote, digest, i, *row] for i, row in enumerate(psvfile)
 		])
 
 		cursor.execute("""
