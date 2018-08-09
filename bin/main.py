@@ -73,6 +73,17 @@ class App:
 			self.save_config()
 
 		self.db.execute("""
+			CREATE TABLE IF NOT EXISTS cdns (
+				key text,
+				Name text,
+				Path text,
+				Hosts text,
+				Servers text,
+				ConfigPath text
+			)
+		""")
+
+		self.db.execute("""
 			CREATE TABLE IF NOT EXISTS versions (
 				key text,
 				BuildConfig text,
