@@ -75,6 +75,7 @@ class App:
 		self.db.execute("""
 			CREATE TABLE IF NOT EXISTS cdns (
 				key text,
+				row int,
 				Name text,
 				Path text,
 				Hosts text,
@@ -86,6 +87,7 @@ class App:
 		self.db.execute("""
 			CREATE TABLE IF NOT EXISTS versions (
 				key text,
+				row int,
 				BuildConfig text,
 				BuildID text,
 				CDNConfig text,
