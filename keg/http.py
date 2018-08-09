@@ -17,15 +17,15 @@ class CDNs:
 		return f"<{self.__class__.__name__}: {self._values}>"
 
 	@property
-	def all_servers(self) -> list:
+	def all_servers(self) -> List[str]:
 		return self.servers + [f"http://{host}" for host in self.hosts]
 
 	@property
-	def hosts(self) -> list:
+	def hosts(self) -> List[str]:
 		return self._values.get("Hosts", "").split()
 
 	@property
-	def servers(self) -> list:
+	def servers(self) -> List[str]:
 		return self._values.get("Servers", "").split()
 
 
