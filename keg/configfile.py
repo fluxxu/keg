@@ -1,3 +1,8 @@
+from typing import Iterable
+
+from .patch import PatchEntry
+
+
 class BaseConfig:
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self._values}>"
@@ -41,8 +46,9 @@ class PatchConfig(BaseConfig):
 		self.patch = self._values.get("patch", "")
 
 	@property
-	def patch_entry(self):
-		return self._values.get("patch-entry", "").splitlines()
+	def patch_entries(self) -> Iterable[PatchEntry]:
+		for entry in self._values.get("patch-entry", "").splitlines():
+			yield PatchEntry(entry)
 
 	@property
 	def patch_size(self):
