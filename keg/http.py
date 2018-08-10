@@ -68,6 +68,6 @@ class HttpBackend:
 	def get_bytes(self, path: str) -> bytes:
 		return self.request_path(path).content
 
-	def get_psv(self, path: str) -> Tuple[psv.PSVFile, bytes]:
-		data = self.get_bytes(path)
-		return psv.load(StringIO(data.decode())), data
+	def get_psv(self, path: str) -> Tuple[psv.PSVFile, requests.Response]:
+		resp = self.request_path(path)
+		return psv.load(StringIO(resp.content.decode())), resp

@@ -13,9 +13,9 @@ class Keg(HttpBackend):
 		self.cache_db = cache_db
 
 	def get_psv(self, path: str):
-		psvfile, data = super().get_psv(path)
+		psvfile, response = super().get_psv(path)
 		timestamp = int(datetime.now().timestamp())
-		digest = md5(data).hexdigest()
+		digest = md5(response.content).hexdigest()
 
 		cache_path = os.path.join(
 			self.cache_dir,
@@ -30,7 +30,7 @@ class Keg(HttpBackend):
 
 			temp_name = cache_path + ".keg_temp"
 			with open(temp_name, "wb") as f:
-				f.write(data)
+				f.write(response.content)
 			os.rename(temp_name, cache_path)
 
 		table_name = path.strip("/")
@@ -57,4 +57,4 @@ class Keg(HttpBackend):
 
 		self.cache_db.commit()
 
-		return psvfile, data
+		return psvfile, response
