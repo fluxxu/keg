@@ -183,6 +183,7 @@ class App:
 
 		archives_to_fetch = set()
 		loose_files_to_fetch = set()
+		patch_files_to_fetch = set()
 		for version in versions:
 			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
 			# get the archive list
@@ -199,7 +200,6 @@ class App:
 			)
 
 			build_config = cdn_wrapper.get_build_config(version.build_config)
-			# patch_config = cdn.get_patch_config(build_config.patch_config)
 			content_key, encoding_key = build_config.encodings  # TODO verify content_key
 			encoding_file = EncodingFile(
 				cdn_wrapper.download_blte_data(encoding_key)
@@ -210,8 +210,15 @@ class App:
 				if not archive_group.has_file(encoding_key) and not cdn_wrapper.has_data(encoding_key):
 					loose_files_to_fetch.add(encoding_key)
 
+			# Download patch files
+			patch_config = cdn_wrapper.get_patch_config(build_config.patch_config)
+			for patch_entry in patch_config.patch_entries:
+				if not cdn_wrapper.has_data(patch_entry.encoding_key):
+					patch_files_to_fetch.add(patch_entry.encoding_key)
+
 		self._download("Fetching archives...", archives_to_fetch, cdn_wrapper.download_data)
 		self._download("Fetching loose files...", loose_files_to_fetch, cdn_wrapper.download_data)
+		self._download("Fetching patch files...", patch_files_to_fetch, cdn_wrapper.download_data)
 
 		# whats left?
 		# metadata:
