@@ -60,7 +60,9 @@ class BLTEDecoder:
 		assert self.fp.read(1) == b"\x0f"
 		block_info_data = self.fp.read(header_size - 9)
 		if self.verify:
-			assert self.hash == hashlib.md5(blte_header_data + b"\x0f" + block_info_data).hexdigest()
+			assert self.hash == hashlib.md5(
+				blte_header_data + b"\x0f" + block_info_data
+			).hexdigest()
 
 		block_info = BytesIO(block_info_data)
 		self.parse_block_info(block_info)
