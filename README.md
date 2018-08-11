@@ -9,6 +9,18 @@ Python 3.6+ only.
 To install dependencies, go to the `keg` root directory and run `pip install .`.
 
 
+## Usage
+
+1. Run `./bin/ngdp init` to initialize the repository.
+   This creates a `.ngdp` folder and some configuration.
+2. Add one or more remotes with `./bin/ngdp remote-add <remote>`.
+   The remote can be any HTTP or HTTPS url, or a Blizzard
+   [Program Code](https://wowdev.wiki/CASC#NGDP_Program_Codes).
+3. Run `ngdp fetch-all` to fetch all configured remotes.
+
+Extraction is not yet implemented.
+
+
 ## Concepts
 
 ### What is NGDP?
@@ -35,11 +47,6 @@ BLTE ("BLock Table Encoding") ...
 
 
 ### What is CASC?
-
-...
-
-
-## Usage
 
 ...
 
