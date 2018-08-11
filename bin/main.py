@@ -8,7 +8,7 @@ import toml
 from tqdm import tqdm
 
 
-DEFAULT_REMOTE = "http://us.patch.battle.net:1119/hsb"
+DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
 
 
 class App:
@@ -114,6 +114,9 @@ class App:
 			)
 		""")
 
+		if "hsb" not in self.remotes:  # Dev hack
+			self.add_remote("hsb")
+
 	def save_config(self):
 		with open(self.config_path, "w") as f:
 			toml.dump(self.config, f)
@@ -121,6 +124,10 @@ class App:
 	def add_remote(self, remote: str):
 		if "remotes" not in self.config["keg"]:
 			self.config["keg"]["remotes"] = []
+
+		if "://" not in remote:
+			remote = DEFAULT_REMOTE_PREFIX + remote
+
 		self.config["keg"]["remotes"].append(remote)
 		self.save_config()
 
@@ -238,8 +245,6 @@ class App:
 
 	def run(self):
 		self.init_repo()  # keg init
-		if DEFAULT_REMOTE not in self.remotes:
-			self.add_remote(DEFAULT_REMOTE)  # keg remote add http://us.patch.battle.net:1119/hsb
 
 		self.fetch_all()
 
