@@ -25,6 +25,10 @@ class App:
 			self.db = None
 
 	@property
+	def preferred_cdns(self) -> List[str]:
+		return self.config["keg"].get("preferred_cdns", [])
+
+	@property
 	def remotes(self) -> List[str]:
 		return self.config["keg"].get("remotes", [])
 
@@ -67,6 +71,7 @@ class App:
 		if not os.path.exists(self.config_path):
 			self.config["keg"] = {
 				"config_version": 1,
+				"preferred_cdns": [],
 			}
 			self.config["ngdp"] = {
 				"hash_function": "md5",
@@ -114,6 +119,25 @@ class App:
 	def save_config(self):
 		with open(self.config_path, "w") as f:
 			toml.dump(self.config, f)
+
+	def _choose_cdn(self, cdns):
+		if not cdns:
+			raise RuntimeError("No CDNs available.")
+
+		available_cdns = ", ".join(cdn.name for cdn in cdns)
+		cdns_lookup = {cdn.name.lower(): cdn for cdn in cdns}
+
+		for preferred_cdn in self.preferred_cdns:
+			cdn_name = preferred_cdn.lower()
+			if cdn_name in cdns_lookup:
+				cdn = cdns_lookup[cdn_name]
+				break
+		else:
+			cdn = cdns[0]
+
+		click.echo(f"Using {cdn.name} (available: {available_cdns})")
+
+		return cdn
 
 	def _clean_remote(self, remote: str) -> str:
 		if "://" not in remote:
@@ -169,14 +193,9 @@ class App:
 		# 10. do stuff for patch files
 		# Finally... resolve all dangling data references
 
-		# Look up all available CDNs
+		# Look up all available CDNs and choose one to use
 		cdns = keg.get_cdns()
-		click.echo("CDNs available: " + ", ".join(cdn.name for cdn in cdns))
-
-		# Pick a CDN
-		assert cdns
-		cdn = cdns[0]
-		click.echo(f"Using {cdn.name}")
+		cdn = self._choose_cdn(cdns)
 
 		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.objects_path)
 
