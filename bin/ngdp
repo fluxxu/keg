@@ -60,9 +60,9 @@ class App:
 	def init_repo(self):
 		if not os.path.exists(self.ngdp_path):
 			os.makedirs(self.ngdp_path)
-			print(f"Initialized in {self.ngdp_path}")
+			click.echo(f"Initialized in {self.ngdp_path}")
 		else:
-			print(f"Reinitialized in {self.ngdp_path}")
+			click.echo(f"Reinitialized in {self.ngdp_path}")
 
 		if not os.path.exists(self.config_path):
 			self.config["keg"] = {
@@ -152,7 +152,7 @@ class App:
 		from keg.cdn import CacheableCDNWrapper
 
 		remote = self._clean_remote(remote)
-		print(f"Fetching {remote}")
+		click.echo(f"Fetching {remote}")
 
 		keg = Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
 
@@ -171,21 +171,19 @@ class App:
 
 		# Look up all available CDNs
 		cdns = keg.get_cdns()
-		print("CDNs available:", ", ".join(cdn.name for cdn in cdns))
+		click.echo("CDNs available: " + ", ".join(cdn.name for cdn in cdns))
 
 		# Pick a CDN
 		assert cdns
 		cdn = cdns[0]
-		print(f"Using {cdn.name}")
+		click.echo(f"Using {cdn.name}")
 
 		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.objects_path)
 
 		# Find all available versions
 		versions = keg.get_versions()
-		print("Regions available:", ", ".join(version.region for version in versions))
 
 		config_to_fetch = set()
-
 		for version in versions:
 			if not cdn_wrapper.has_config(version.build_config):
 				config_to_fetch.add(version.build_config)
@@ -252,8 +250,6 @@ class App:
 		# - patch files
 		#   - patch manifest
 		#   - files referenced by patch
-
-		print("Done.")
 
 
 @click.group()
