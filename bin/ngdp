@@ -233,11 +233,12 @@ class App:
 					loose_files_to_fetch.add(encoding_key)
 
 			# Download patch files
-			patch_config = cdn_wrapper.get_patch_config(build_config.patch_config)
-			for patch_entry in patch_config.patch_entries:
-				for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-					if not cdn_wrapper.has_patch(patch_key):
-						patch_files_to_fetch.add(patch_key)
+			if build_config.patch_config:
+				patch_config = cdn_wrapper.get_patch_config(build_config.patch_config)
+				for patch_entry in patch_config.patch_entries:
+					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
+						if not cdn_wrapper.has_patch(patch_key):
+							patch_files_to_fetch.add(patch_key)
 
 		self._download("Fetching archives...", archives_to_fetch, cdn_wrapper.download_data)
 		self._download("Fetching loose files...", loose_files_to_fetch, cdn_wrapper.download_data)
