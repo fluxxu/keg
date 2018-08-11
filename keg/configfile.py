@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Tuple
 
 from .patch import PatchEntry
 
@@ -21,8 +21,13 @@ class BuildConfig(BaseConfig):
 		self.build_uid = self._values.get("build-uid", "")
 
 	@property
-	def encodings(self):
-		return self._values.get("encoding", "").split()
+	def encodings(self) -> Tuple[str, str]:
+		ret = self._values.get("encoding", "").split()[:2]
+		if not ret:
+			return "", ""
+		elif len(ret) == 1:
+			return ret[0], ""
+		return ret[0], ret[1]
 
 
 class CDNConfig(BaseConfig):
