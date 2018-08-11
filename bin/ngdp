@@ -243,14 +243,16 @@ class App:
 
 			build_config = cdn_wrapper.get_build_config(version.build_config)
 			content_key, encoding_key = build_config.encodings  # TODO verify content_key
-			encoding_file = EncodingFile(
-				cdn_wrapper.download_blte_data(encoding_key)
-			)
 
-			# Download loose files
-			for encoding_key in encoding_file.keys:
-				if not archive_group.has_file(encoding_key) and not cdn_wrapper.has_data(encoding_key):
-					loose_files_to_fetch.add(encoding_key)
+			if encoding_key:
+				encoding_file = EncodingFile(
+					cdn_wrapper.download_blte_data(encoding_key)
+				)
+
+				# Download loose files
+				for key in encoding_file.keys:
+					if not archive_group.has_file(key) and not cdn_wrapper.has_data(key):
+						loose_files_to_fetch.add(key)
 
 			# Download patch files
 			if build_config.patch_config:
