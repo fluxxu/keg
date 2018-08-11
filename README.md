@@ -1,4 +1,5 @@
 # keg
+[![Build Status](https://api.travis-ci.org/HearthSim/keg.svg?branch=master)](https://travis-ci.org/HearthSim/keg)
 
 A library and client implementation of Blizzard's NGDP protocol.
 
