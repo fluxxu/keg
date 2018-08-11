@@ -3,6 +3,12 @@
 A library and client implementation of Blizzard's NGDP protocol.
 
 
+## Installation
+
+Python 3.6+ only.
+To install dependencies, go to the `keg` root directory and run `pip install .`.
+
+
 ## Concepts
 
 ### What is NGDP?
