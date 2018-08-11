@@ -2,7 +2,7 @@
 import os
 import sqlite3
 from argparse import ArgumentParser
-from typing import List, Set
+from typing import Any, List, Set
 
 import toml
 from tqdm import tqdm
@@ -121,14 +121,31 @@ class App:
 		with open(self.config_path, "w") as f:
 			toml.dump(self.config, f)
 
-	def add_remote(self, remote: str):
-		if "remotes" not in self.config["keg"]:
-			self.config["keg"]["remotes"] = []
-
+	def _clean_remote(self, remote: str) -> str:
 		if "://" not in remote:
-			remote = DEFAULT_REMOTE_PREFIX + remote
+			return DEFAULT_REMOTE_PREFIX + remote
+		return remote
+
+	def _ensure_config(self, ns: str, key: str, value: Any):
+		if key not in self.config[ns]:
+			self.config[ns][key] = value
+
+	def add_remote(self, remote: str):
+		self._ensure_config("keg", "remotes", [])
+		remote = self._clean_remote(remote)
 
 		self.config["keg"]["remotes"].append(remote)
+		self.save_config()
+
+	def remove_remote(self, remote: str):
+		self._ensure_config("keg", "remotes", [])
+		remote = self._clean_remote(remote)
+
+		try:
+			self.config["keg"]["remotes"].remove(remote)
+		except ValueError:
+			raise RuntimeError(f"No such remote: {remote}")
+
 		self.save_config()
 
 	def fetch(self, remote: str):
