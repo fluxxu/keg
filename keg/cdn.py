@@ -1,3 +1,4 @@
+import hashlib
 import os
 from typing import IO
 
@@ -21,9 +22,12 @@ class BaseCDN:
 		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
 			return resp.read()
 
-	def fetch_patch(self, key: str) -> bytes:
+	def fetch_patch(self, key: str, verify: bool=False) -> bytes:
 		with self.get_item(f"/patch/{partition_hash(key)}") as resp:
-			return resp.read()
+			data = resp.read()
+			if verify:
+				assert hashlib.md5(data).hexdigest() == key
+			return data
 
 	def load_config(self, key: str) -> dict:
 		return blizini.load(self.fetch_config(key).decode())
