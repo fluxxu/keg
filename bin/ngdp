@@ -169,7 +169,7 @@ class App:
 
 		self.save_config()
 
-	def fetch(self, remote: str):
+	def fetch(self, remote: str, metadata_only: bool=False):
 		from keg import Keg
 		from keg.archive import ArchiveGroup
 		from keg.encoding import EncodingFile
@@ -219,6 +219,9 @@ class App:
 					indices_to_fetch.add(archive_key)
 
 		self._download("Fetching indices...", indices_to_fetch, cdn_wrapper.fetch_index)
+
+		if metadata_only:
+			return
 
 		archives_to_fetch = set()
 		loose_files_to_fetch = set()
@@ -290,16 +293,18 @@ def init(ctx):
 
 @main.command()
 @click.argument("remote")
+@click.option("--metadata-only", is_flag=True)
 @click.pass_context
-def fetch(ctx, remote):
-	ctx.obj.fetch(remote)
+def fetch(ctx, remote, metadata_only=True):
+	ctx.obj.fetch(remote, metadata_only)
 
 
 @main.command("fetch-all")
+@click.option("--metadata-only", is_flag=True)
 @click.pass_context
-def fetch_all(ctx):
+def fetch_all(ctx, metadata_only=True):
 	for remote in ctx.obj.remotes:
-		ctx.obj.fetch(remote)
+		ctx.obj.fetch(remote, metadata_only)
 
 
 @main.command("add-remote")
