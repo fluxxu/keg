@@ -111,9 +111,6 @@ class App:
 			)
 		""")
 
-		if "hsb" not in self.remotes:  # Dev hack
-			self.add_remote("hsb")
-
 	def save_config(self):
 		with open(self.config_path, "w") as f:
 			toml.dump(self.config, f)
@@ -131,6 +128,9 @@ class App:
 		self._ensure_config("keg", "remotes", [])
 		remote = self._clean_remote(remote)
 
+		if remote in self.config["keg"]["remotes"]:
+			raise click.ClickException(f"Remote {remote} already exists")
+
 		self.config["keg"]["remotes"].append(remote)
 		self.save_config()
 
@@ -141,7 +141,7 @@ class App:
 		try:
 			self.config["keg"]["remotes"].remove(remote)
 		except ValueError:
-			raise RuntimeError(f"No such remote: {remote}")
+			raise click.ClickException(f"No such remote: {remote}")
 
 		self.save_config()
 
@@ -279,6 +279,20 @@ def fetch(ctx, remote):
 def fetch_all(ctx):
 	for remote in ctx.obj.remotes:
 		ctx.obj.fetch(remote)
+
+
+@main.command("add-remote")
+@click.argument("remote")
+@click.pass_context
+def add_remote(ctx, remote):
+	ctx.obj.add_remote(remote)
+
+
+@main.command("rm-remote")
+@click.argument("remote")
+@click.pass_context
+def remove_remote(ctx, remote):
+	ctx.obj.remove_remote(remote)
 
 
 if __name__ == "__main__":
