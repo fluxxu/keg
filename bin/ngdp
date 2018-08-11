@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import os
 import sqlite3
-from argparse import ArgumentParser
 from typing import Any, List, Set
 
+import click
 import toml
 from tqdm import tqdm
 
@@ -12,11 +12,8 @@ DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
 
 
 class App:
-	def __init__(self, args):
-		p = ArgumentParser()
-		p.add_argument("--ngdp-dir", default=".ngdp")
-		self.args = p.parse_args(args)
-		self.ngdp_path = os.path.abspath(self.args.ngdp_dir)
+	def __init__(self, ngdp_dir: str) -> None:
+		self.ngdp_path = os.path.abspath(ngdp_dir)
 		self.objects_path = os.path.join(self.ngdp_path, "objects")
 		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
 		self.db_path = os.path.join(self.ngdp_path, "keg.db")
@@ -154,6 +151,7 @@ class App:
 		from keg.encoding import EncodingFile
 		from keg.cdn import CacheableCDNWrapper
 
+		remote = self._clean_remote(remote)
 		print(f"Fetching {remote}")
 
 		keg = Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
@@ -256,25 +254,31 @@ class App:
 
 		print("Done.")
 
-	def fetch_all(self):
-		for remote in self.remotes:
-			self.fetch(remote)
 
-	def run(self):
-		self.init_repo()  # keg init
-
-		self.fetch_all()
-
-		return 0
-
-
-def main():
+@click.group()
+@click.option("--ngdp-dir", default=".ngdp")
+@click.pass_context
+def main(ctx, ngdp_dir):
+	# dev hack
 	import sys
+	sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-	sys.path.append(os.path.abspath("."))
+	ctx.obj = App(ngdp_dir)
+	ctx.obj.init_repo()
 
-	app = App(sys.argv[1:])
-	exit(app.run())
+
+@main.command()
+@click.argument("remote")
+@click.pass_context
+def fetch(ctx, remote):
+	ctx.obj.fetch(remote)
+
+
+@main.command("fetch-all")
+@click.pass_context
+def fetch_all(ctx):
+	for remote in ctx.obj.remotes:
+		ctx.obj.fetch(remote)
 
 
 if __name__ == "__main__":
