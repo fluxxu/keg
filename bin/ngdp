@@ -280,6 +280,11 @@ def main(ctx, ngdp_dir):
 	sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 	ctx.obj = App(ngdp_dir)
+
+
+@main.command()
+@click.pass_context
+def init(ctx):
 	ctx.obj.init_repo()
 
 
