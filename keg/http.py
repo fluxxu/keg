@@ -11,7 +11,7 @@ class PSVResponse:
 		self._row = row
 
 	def __repr__(self):
-		return f"<{self.__class__.__name__}: {self._psv}>"
+		return f"<{self.__class__.__name__}: {self._row}>"
 
 
 class CDNs(PSVResponse):
