@@ -309,14 +309,19 @@ def fetch_all(ctx, metadata_only=True):
 		ctx.obj.fetch(remote, metadata_only)
 
 
-@main.command("add-remote")
+@main.group()
+def remote():
+	pass
+
+
+@remote.command("add")
 @click.argument("remote")
 @click.pass_context
 def add_remote(ctx, remote):
 	ctx.obj.add_remote(remote)
 
 
-@main.command("rm-remote")
+@remote.command("rm")
 @click.argument("remote")
 @click.pass_context
 def remove_remote(ctx, remote):
