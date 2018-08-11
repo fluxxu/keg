@@ -21,6 +21,10 @@ class BaseCDN:
 		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
 			return resp.read()
 
+	def fetch_patch(self, key: str) -> bytes:
+		with self.get_item(f"/patch/{partition_hash(key)}") as resp:
+			return resp.read()
+
 	def load_config(self, key: str) -> dict:
 		return blizini.load(self.fetch_config(key).decode())
 
@@ -99,6 +103,10 @@ class CacheableCDNWrapper(BaseCDN):
 
 	def has_index(self, key: str) -> bool:
 		path = f"/data/{partition_hash(key)}.index"
+		return self.local_cdn.exists(path)
+
+	def has_patch(self, key: str) -> bool:
+		path = f"/patch/{partition_hash(key)}"
 		return self.local_cdn.exists(path)
 
 

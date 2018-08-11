@@ -213,12 +213,13 @@ class App:
 			# Download patch files
 			patch_config = cdn_wrapper.get_patch_config(build_config.patch_config)
 			for patch_entry in patch_config.patch_entries:
-				if not cdn_wrapper.has_data(patch_entry.encoding_key):
-					patch_files_to_fetch.add(patch_entry.encoding_key)
+				for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
+					if not cdn_wrapper.has_patch(patch_key):
+						patch_files_to_fetch.add(patch_key)
 
 		self._download("Fetching archives...", archives_to_fetch, cdn_wrapper.download_data)
 		self._download("Fetching loose files...", loose_files_to_fetch, cdn_wrapper.download_data)
-		self._download("Fetching patch files...", patch_files_to_fetch, cdn_wrapper.download_data)
+		self._download("Fetching patch files...", patch_files_to_fetch, cdn_wrapper.fetch_patch)
 
 		# whats left?
 		# metadata:
