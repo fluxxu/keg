@@ -316,17 +316,19 @@ def remote(ctx):
 
 
 @remote.command("add")
-@click.argument("remote")
+@click.argument("remotes", nargs=-1, required=True)
 @click.pass_context
-def add_remote(ctx, remote):
-	ctx.obj.add_remote(remote)
+def add_remote(ctx, remotes):
+	for remote in remotes:
+		ctx.obj.add_remote(remote)
 
 
 @remote.command("rm")
-@click.argument("remote")
+@click.argument("remotes", nargs=-1, required=True)
 @click.pass_context
-def remove_remote(ctx, remote):
-	ctx.obj.remove_remote(remote)
+def remove_remote(ctx, remotes):
+	for remote in remotes:
+		ctx.obj.remove_remote(remote)
 
 
 @remote.command("list")
