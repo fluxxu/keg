@@ -328,5 +328,12 @@ def remove_remote(ctx, remote):
 	ctx.obj.remove_remote(remote)
 
 
+@remote.command("list")
+@click.pass_context
+def list_remotes(ctx):
+	for remote in ctx.obj.remotes:
+		print(remote)
+
+
 if __name__ == "__main__":
 	main()
