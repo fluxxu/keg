@@ -224,6 +224,14 @@ class App:
 		# Find all available versions
 		versions = keg.get_versions()
 
+		# Update blobs
+		for blob_name in ("game", "install"):
+			try:
+				keg.get_blob(blob_name)
+			except NetworkError:
+				# Blobs are optional
+				pass
+
 		config_to_fetch = set()
 		for version in versions:
 			if not cdn_wrapper.has_config(version.build_config):
