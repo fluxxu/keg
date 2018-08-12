@@ -1,9 +1,6 @@
-import os
-from datetime import datetime
-from hashlib import md5
+from typing import Any, Tuple
 
 from .http import HttpBackend
-from .utils import partition_hash
 
 
 class Keg(HttpBackend):
@@ -12,32 +9,20 @@ class Keg(HttpBackend):
 		self.cache_dir = cache_dir
 		self.cache_db = cache_db
 
+	def get_blob(self, name: str) -> Tuple[Any, Any]:
+		ret, response = super().get_blob(name)
+		response.write_to_cache(self.cache_dir)
+		return ret, response
+
 	def get_psv(self, path: str):
 		psvfile, response = super().get_psv(path)
-		timestamp = int(datetime.now().timestamp())
-		digest = md5(response.content).hexdigest()
-
-		cache_path = os.path.join(
-			self.cache_dir,
-			path.lstrip("/"),
-			partition_hash(digest)
-		)
-
-		if not os.path.exists(cache_path):
-			cache_dir = os.path.dirname(cache_path)
-			if not os.path.exists(cache_dir):
-				os.makedirs(cache_dir)
-
-			temp_name = cache_path + ".keg_temp"
-			with open(temp_name, "wb") as f:
-				f.write(response.content)
-			os.rename(temp_name, cache_path)
+		response.write_to_cache(self.cache_dir)
 
 		table_name = path.strip("/")
 		cursor = self.cache_db.cursor()
 		cursor.execute("""
 			DELETE FROM "%s" where remote = ? and key = ?
-		""" % (table_name), (self.remote, digest, ))
+		""" % (table_name), (self.remote, response.digest, ))
 
 		insert_tpl = 'INSERT INTO "%s" (remote, key, row, %s) values (?, ?, ?, %s)' % (
 			table_name,
@@ -45,7 +30,7 @@ class Keg(HttpBackend):
 			", ".join(["?"] * (len(psvfile.header)))
 		)
 		cursor.executemany(insert_tpl, [
-			[self.remote, digest, i, *row] for i, row in enumerate(psvfile)
+			[self.remote, response.digest, i, *row] for i, row in enumerate(psvfile)
 		])
 
 		cursor.execute("""
@@ -53,7 +38,7 @@ class Keg(HttpBackend):
 				(remote, path, timestamp, digest)
 			VALUES
 				(?, ?, ?, ?)
-		""", (self.remote, path, timestamp, digest))
+		""", (self.remote, path, response.timestamp, response.digest))
 
 		self.cache_db.commit()
 
