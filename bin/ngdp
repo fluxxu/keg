@@ -78,6 +78,7 @@ class App:
 			self.config["keg"] = {
 				"config_version": 1,
 				"preferred_cdns": [],
+				"default-remote-prefix": DEFAULT_REMOTE_PREFIX,
 			}
 			self.config["ngdp"] = {
 				"hash_function": "md5",
@@ -147,7 +148,9 @@ class App:
 
 	def _clean_remote(self, remote: str) -> str:
 		if "://" not in remote:
-			return DEFAULT_REMOTE_PREFIX + remote
+			return self.config["keg"].get(
+				"default-remote-prefix", DEFAULT_REMOTE_PREFIX
+			) + remote
 		return remote
 
 	def fetch(self, remote: str, metadata_only: bool=False):
