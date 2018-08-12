@@ -158,6 +158,7 @@ class App:
 		from keg.archive import ArchiveGroup
 		from keg.encoding import EncodingFile
 		from keg.cdn import CacheableCDNWrapper
+		from keg.exceptions import NetworkError
 
 		remote = self._clean_remote(remote)
 		click.echo(f"Fetching {remote}")
@@ -178,7 +179,10 @@ class App:
 		# Finally... resolve all dangling data references
 
 		# Look up all available CDNs and choose one to use
-		cdns = keg.get_cdns()
+		try:
+			cdns = keg.get_cdns()
+		except NetworkError:
+			raise click.ClickException(f"NGDP repository {remote} not found")
 		cdn = self._choose_cdn(cdns)
 
 		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.objects_path)

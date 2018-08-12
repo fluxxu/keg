@@ -4,6 +4,7 @@ from typing import List, Tuple
 import requests
 
 from . import psv
+from .exceptions import NetworkError
 
 
 class PSVResponse:
@@ -70,4 +71,6 @@ class HttpBackend:
 
 	def get_psv(self, path: str) -> Tuple[psv.PSVFile, requests.Response]:
 		resp = self.request_path(path)
+		if resp.status_code != 200:
+			raise NetworkError(f"Got status code {resp.status_code} for {repr(path)}")
 		return psv.load(StringIO(resp.content.decode())), resp
