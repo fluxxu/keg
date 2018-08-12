@@ -7,6 +7,7 @@ from typing import List, Set
 
 import click
 import toml
+from tabulate import tabulate
 from tqdm import tqdm
 
 
@@ -382,6 +383,50 @@ def remove_remote(ctx, remotes):
 def list_remotes(ctx):
 	for remote in ctx.obj.remotes:
 		print(remote)
+
+
+@main.command("inspect")
+@click.argument("remote")
+@click.pass_context
+def inspect(ctx, remote):
+	remote = ctx.obj._clean_remote(remote)
+
+	cursor = ctx.obj.db.cursor()
+	cursor.execute("""
+		SELECT
+			distinct(BuildConfig), BuildID, VersionsName
+		FROM versions
+		WHERE
+			remote = ?
+	""", (remote,))
+	results = cursor.fetchall()
+
+	if not results:
+		click.echo(f"No known data for {remote}")
+		return
+
+	click.echo(f"Remote: {remote}\n")
+	click.echo(tabulate(
+		results,
+		headers=("Build Config", "Build ID", "Version")
+	))
+
+	def find_version(self, version: str) -> str:
+		cursor = self.db.cursor()
+		cursor.execute("""
+			SELECT distinct(BuildConfig)
+			FROM versions
+			WHERE
+				VersionsName = ? OR BuildID = ?
+		""", (version, version))
+		results = cursor.fetchall()
+		if len(results) == 1:
+			return results[0][0]
+		else:
+			raise AmbiguousVersionError(
+				f"Version {repr(version)} is ambiguous",
+				sorted(set(chain(*results)))
+			)
 
 
 @main.command()
