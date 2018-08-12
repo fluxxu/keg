@@ -14,9 +14,12 @@ class BaseCDN:
 	def get_item(self, path: str):
 		raise NotImplementedError()
 
-	def fetch_config(self, key: str) -> bytes:
+	def fetch_config(self, key: str, verify: bool=True) -> bytes:
 		with self.get_item(f"/config/{partition_hash(key)}") as resp:
-			return resp.read()
+			data = resp.read()
+		if verify:
+			assert hashlib.md5(data).hexdigest() == key
+		return data
 
 	def fetch_index(self, key: str) -> bytes:
 		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
