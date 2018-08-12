@@ -30,7 +30,7 @@ class App:
 
 	@property
 	def remotes(self) -> List[str]:
-		return self.config["keg"].get("remotes", [])
+		return self.config.get("remotes", [])
 
 	def _download(self, message: str, iterable: Set[str], callback):
 		if not iterable:
@@ -149,22 +149,20 @@ class App:
 			self.config[ns][key] = value
 
 	def add_remote(self, remote: str):
-		self._ensure_config("keg", "remotes", [])
 		remote = self._clean_remote(remote)
 
-		if remote in self.config["keg"]["remotes"]:
+		if remote in self.config["remotes"]:
 			raise click.ClickException(f"Remote {remote} already exists")
 
-		self.config["keg"]["remotes"].append(remote)
+		self.config["remotes"][remote] = {}
 		self.save_config()
 
 	def remove_remote(self, remote: str):
-		self._ensure_config("keg", "remotes", [])
 		remote = self._clean_remote(remote)
 
 		try:
-			self.config["keg"]["remotes"].remove(remote)
-		except ValueError:
+			del self.config["remotes"][remote]
+		except KeyError:
 			raise click.ClickException(f"No such remote: {remote}")
 
 		self.save_config()
@@ -310,7 +308,10 @@ def fetch_all(ctx, metadata_only=True):
 
 
 @main.group()
-def remote():
+@click.pass_context
+def remote(ctx):
+	if "remotes" not in ctx.obj.config:
+		ctx.obj.config["remotes"] = {}
 	pass
 
 
