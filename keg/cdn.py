@@ -15,6 +15,9 @@ class BaseCDN:
 	def get_item(self, path: str):
 		raise NotImplementedError()
 
+	def get_config_item(self, path: str):
+		raise NotImplementedError()
+
 	def fetch_config(self, key: str, verify: bool=True) -> bytes:
 		with self.get_item(f"/config/{partition_hash(key)}") as resp:
 			data = resp.read()
@@ -23,7 +26,7 @@ class BaseCDN:
 		return data
 
 	def fetch_config_data(self, key: str, verify: bool=False) -> bytes:
-		with self.get_item(f"/configs/data/{partition_hash(key)}") as resp:
+		with self.get_config_item("/" + partition_hash(key)) as resp:
 			data = resp.read()
 		if verify:
 			assert hashlib.md5(data).hexdigest() == key
@@ -72,13 +75,17 @@ class RemoteCDN(BaseCDN):
 		assert cdn.all_servers
 		self.server = cdn.all_servers[0]
 		self.path = cdn.path
+		self.config_path = cdn.config_path
 
 	def get_response(self, path: str) -> requests.Response:
-		url = f"{self.server}/{self.path}{path}"
+		url = f"{self.server}/{path}"
 		return requests.get(url, stream=True)
 
 	def get_item(self, path: str) -> IO:
-		return self.get_response(path).raw
+		return self.get_response(self.path + path).raw
+
+	def get_config_item(self, path: str) -> IO:
+		return self.get_response(self.config_path + path).raw
 
 
 class LocalCDN(BaseCDN):
@@ -88,11 +95,22 @@ class LocalCDN(BaseCDN):
 	def get_full_path(self, path: str) -> str:
 		return os.path.join(self.base_dir, path.lstrip("/"))
 
+	def get_config_path(self, path: str) -> str:
+		return os.path.join(
+			self.base_dir, "configs", "data", path.lstrip("/")
+		)
+
 	def get_item(self, path: str) -> IO:
 		return open(self.get_full_path(path), "rb")
 
+	def get_config_item(self, path: str) -> IO:
+		return open(self.get_config_path(path), "rb")
+
 	def exists(self, path: str) -> bool:
 		return os.path.exists(self.get_full_path(path))
+
+	def config_exists(self, path: str) -> bool:
+		return os.path.exists(self.get_config_path(path))
 
 
 class CacheableCDNWrapper(BaseCDN):
@@ -105,11 +123,22 @@ class CacheableCDNWrapper(BaseCDN):
 	def get_item(self, path: str) -> IO:
 		if not self.local_cdn.exists(path):
 			cache_file_path = self.local_cdn.get_full_path(path)
-			response = self.remote_cdn.get_response(path)
+			remote_path = self.remote_cdn.path + path
+			response = self.remote_cdn.get_response(remote_path)
 			f = HTTPCacheWrapper(response, cache_file_path)
 			f.close()
 
 		return self.local_cdn.get_item(path)
+
+	def get_config_item(self, path: str) -> IO:
+		if not self.local_cdn.config_exists(path):
+			cache_file_path = self.local_cdn.get_config_path(path)
+			remote_path = self.remote_cdn.config_path + path
+			response = self.remote_cdn.get_response(remote_path)
+			f = HTTPCacheWrapper(response, cache_file_path)
+			f.close()
+
+		return self.local_cdn.get_config_item(path)
 
 	def has_config(self, key: str) -> bool:
 		path = f"/config/{partition_hash(key)}"
