@@ -36,8 +36,8 @@ class Keg(HttpBackend):
 		table_name = path.strip("/")
 		cursor = self.cache_db.cursor()
 		cursor.execute("""
-			DELETE FROM "%s" where key = ?
-		""" % (table_name), (digest, ))
+			DELETE FROM "%s" where remote = ? and key = ?
+		""" % (table_name), (self.remote, digest, ))
 
 		insert_tpl = 'INSERT INTO "%s" (remote, key, row, %s) values (?, ?, ?, %s)' % (
 			table_name,
