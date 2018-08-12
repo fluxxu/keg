@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 import sqlite3
-from typing import Any, List, Set
+from typing import List, Set
 
 import click
 import toml
@@ -149,32 +149,6 @@ class App:
 		if "://" not in remote:
 			return DEFAULT_REMOTE_PREFIX + remote
 		return remote
-
-	def _ensure_config(self, ns: str, key: str, value: Any):
-		if key not in self.config[ns]:
-			self.config[ns][key] = value
-
-	def add_remote(self, remote: str, default_fetch: bool, writeable: bool):
-		remote = self._clean_remote(remote)
-
-		if remote in self.config["remotes"]:
-			raise click.ClickException(f"Remote {remote} already exists")
-
-		self.config["remotes"][remote] = {
-			"default-fetch": default_fetch,
-			"writeable": writeable,
-		}
-		self.save_config()
-
-	def remove_remote(self, remote: str):
-		remote = self._clean_remote(remote)
-
-		try:
-			del self.config["remotes"][remote]
-		except KeyError:
-			raise click.ClickException(f"No such remote: {remote}")
-
-		self.save_config()
 
 	def fetch(self, remote: str, metadata_only: bool=False):
 		from keg import Keg
@@ -330,7 +304,16 @@ def remote(ctx):
 @click.pass_context
 def add_remote(ctx, remotes, default_fetch, writeable):
 	for remote in remotes:
-		ctx.obj.add_remote(remote, default_fetch, writeable)
+		remote = ctx.obj._clean_remote(remote)
+
+		if remote in ctx.obj.config["remotes"]:
+			raise click.ClickException(f"Remote {remote} already exists")
+
+		ctx.obj.config["remotes"][remote] = {
+			"default-fetch": default_fetch,
+			"writeable": writeable,
+		}
+		ctx.obj.save_config()
 
 
 @remote.command("rm")
@@ -338,7 +321,15 @@ def add_remote(ctx, remotes, default_fetch, writeable):
 @click.pass_context
 def remove_remote(ctx, remotes):
 	for remote in remotes:
-		ctx.obj.remove_remote(remote)
+		remote = ctx.obj._clean_remote(remote)
+
+		try:
+			del ctx.obj.config["remotes"][remote]
+		except KeyError:
+			raise click.ClickException(f"No such remote: {remote}")
+
+		ctx.obj.save_config()
+
 
 
 @remote.command("list")
