@@ -16,6 +16,14 @@ class PSVResponse:
 		return f"<{self.__class__.__name__}: {self._row}>"
 
 
+class Blobs(PSVResponse):
+	def __init__(self, row: psv.PSVRow) -> None:
+		super().__init__(row)
+		self.region = row.Region
+		self.install_blob_md5 = row.InstallBlobMD5.lower()
+		self.game_blob_md5 = row.GameBlobMD5.lower()
+
+
 class CDNs(PSVResponse):
 	def __init__(self, row: psv.PSVRow) -> None:
 		super().__init__(row)
@@ -58,6 +66,10 @@ class HttpBackend:
 	def request_path(self, path: str) -> requests.Response:
 		url = self.remote + path
 		return requests.get(url)
+
+	def get_blobs(self) -> List[Blobs]:
+		psvfile, _ = self.get_psv("/blobs")
+		return [Blobs(row) for row in psvfile]
 
 	def get_cdns(self) -> List[CDNs]:
 		psvfile, _ = self.get_psv("/cdns")

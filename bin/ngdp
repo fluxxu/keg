@@ -113,6 +113,17 @@ class App:
 		""")
 
 		self.db.execute("""
+			CREATE TABLE IF NOT EXISTS blobs (
+				remote text,
+				key text,
+				row int,
+				Region text,
+				InstallBlobMD5 text,
+				GameBlobMD5 text
+			)
+		""")
+
+		self.db.execute("""
 			CREATE TABLE IF NOT EXISTS cdns (
 				remote text,
 				key text,
@@ -229,6 +240,13 @@ class App:
 		versions = keg.get_versions()
 
 		# Update blobs
+
+		bar.set_description_str("Receiving blobs")
+		try:
+			keg.get_blobs()
+		except NetworkError:
+			# Optional
+			pass
 		for blob_name in ("game", "install"):
 			bar.set_description_str(f"Receiving {blob_name} blob")
 			try:
