@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import os
+import re
 import sqlite3
+from itertools import chain
 from typing import List, Set
 
 import click
@@ -9,6 +11,20 @@ from tqdm import tqdm
 
 
 DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
+
+
+def looks_like_md5(s: str) -> bool:
+	return bool(re.match(r"[0-9a-f]{32}", s))
+
+
+class AmbiguousVersionError(click.ClickException):
+	def __init__(self, msg, hints):
+		super().__init__(msg)
+		self._hints = hints
+
+	def format_message(self):
+		hints = "\n    ".join([""] + self._hints)
+		return self.message + "\n\nThe candidates are:" + hints
 
 
 class App:
@@ -152,6 +168,23 @@ class App:
 				"default-remote-prefix", DEFAULT_REMOTE_PREFIX
 			) + remote
 		return remote
+
+	def find_version(self, version: str) -> str:
+		cursor = self.db.cursor()
+		cursor.execute("""
+			SELECT distinct(BuildConfig)
+			FROM versions
+			WHERE
+				VersionsName = ? OR BuildID = ?
+		""", (version, version))
+		results = cursor.fetchall()
+		if len(results) == 1:
+			return results[0][0]
+		else:
+			raise AmbiguousVersionError(
+				f"Version {repr(version)} is ambiguous",
+				sorted(set(chain(*results)))
+			)
 
 	def fetch(self, remote: str, metadata_only: bool=False):
 		from keg import Keg
@@ -349,6 +382,20 @@ def remove_remote(ctx, remotes):
 def list_remotes(ctx):
 	for remote in ctx.obj.remotes:
 		print(remote)
+
+
+@main.command()
+@click.argument("version")
+@click.pass_context
+def checkout(ctx, version):
+	if not looks_like_md5(version.lower()):
+		key = ctx.obj.find_version(version)
+		if not key:
+			raise click.ClickException(f"Version not found: {version}")
+	else:
+		key = version.lower()
+
+	print(f"Checking out {key}...")
 
 
 if __name__ == "__main__":
