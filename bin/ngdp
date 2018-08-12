@@ -154,7 +154,7 @@ class App:
 		if key not in self.config[ns]:
 			self.config[ns][key] = value
 
-	def add_remote(self, remote: str, default_fetch: bool):
+	def add_remote(self, remote: str, default_fetch: bool, writeable: bool):
 		remote = self._clean_remote(remote)
 
 		if remote in self.config["remotes"]:
@@ -162,6 +162,7 @@ class App:
 
 		self.config["remotes"][remote] = {
 			"default-fetch": default_fetch,
+			"writeable": writeable,
 		}
 		self.save_config()
 
@@ -324,11 +325,12 @@ def remote(ctx):
 
 @remote.command("add")
 @click.argument("remotes", nargs=-1, required=True)
+@click.option("--writeable", is_flag=True)
 @click.option("--default-fetch/--no-default-fetch", default=True)
 @click.pass_context
-def add_remote(ctx, remotes, default_fetch):
+def add_remote(ctx, remotes, default_fetch, writeable):
 	for remote in remotes:
-		ctx.obj.add_remote(remote, default_fetch)
+		ctx.obj.add_remote(remote, default_fetch, writeable)
 
 
 @remote.command("rm")
