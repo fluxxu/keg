@@ -1,5 +1,6 @@
+import json
 from io import StringIO
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 import requests
 
@@ -68,6 +69,12 @@ class HttpBackend:
 
 	def get_bytes(self, path: str) -> bytes:
 		return self.request_path(path).content
+
+	def get_blob(self, name: str) -> Any:
+		resp = self.request_path(f"/blob/{name}")
+		if resp.status_code != 200:
+			raise NetworkError(f"Got status code {resp.status_code} for blob {repr(name)}")
+		return json.loads(resp.content.decode())
 
 	def get_psv(self, path: str) -> Tuple[psv.PSVFile, requests.Response]:
 		resp = self.request_path(path)
