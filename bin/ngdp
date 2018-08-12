@@ -32,6 +32,12 @@ class App:
 	def remotes(self) -> List[str]:
 		return self.config.get("remotes", [])
 
+	@property
+	def fetchable_remotes(self) -> List[str]:
+		for remote in self.remotes:
+			if self.config["remotes"][remote].get("default-fetch"):
+				yield remote
+
 	def _download(self, message: str, iterable: Set[str], callback):
 		if not iterable:
 			print(message, "Up-to-date.")
@@ -148,13 +154,15 @@ class App:
 		if key not in self.config[ns]:
 			self.config[ns][key] = value
 
-	def add_remote(self, remote: str):
+	def add_remote(self, remote: str, default_fetch: bool):
 		remote = self._clean_remote(remote)
 
 		if remote in self.config["remotes"]:
 			raise click.ClickException(f"Remote {remote} already exists")
 
-		self.config["remotes"][remote] = {}
+		self.config["remotes"][remote] = {
+			"default-fetch": default_fetch,
+		}
 		self.save_config()
 
 	def remove_remote(self, remote: str):
@@ -303,7 +311,7 @@ def fetch(ctx, remote, metadata_only=True):
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def fetch_all(ctx, metadata_only=True):
-	for remote in ctx.obj.remotes:
+	for remote in ctx.obj.fetchable_remotes:
 		ctx.obj.fetch(remote, metadata_only)
 
 
@@ -312,15 +320,15 @@ def fetch_all(ctx, metadata_only=True):
 def remote(ctx):
 	if "remotes" not in ctx.obj.config:
 		ctx.obj.config["remotes"] = {}
-	pass
 
 
 @remote.command("add")
 @click.argument("remotes", nargs=-1, required=True)
+@click.option("--default-fetch/--no-default-fetch", default=True)
 @click.pass_context
-def add_remote(ctx, remotes):
+def add_remote(ctx, remotes, default_fetch):
 	for remote in remotes:
-		ctx.obj.add_remote(remote)
+		ctx.obj.add_remote(remote, default_fetch)
 
 
 @remote.command("rm")
