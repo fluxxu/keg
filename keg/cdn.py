@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 from typing import IO
 
@@ -16,6 +17,13 @@ class BaseCDN:
 
 	def fetch_config(self, key: str, verify: bool=True) -> bytes:
 		with self.get_item(f"/config/{partition_hash(key)}") as resp:
+			data = resp.read()
+		if verify:
+			assert hashlib.md5(data).hexdigest() == key
+		return data
+
+	def fetch_config_data(self, key: str, verify: bool=False) -> bytes:
+		with self.get_item(f"/configs/data/{partition_hash(key)}") as resp:
 			data = resp.read()
 		if verify:
 			assert hashlib.md5(data).hexdigest() == key
@@ -43,6 +51,9 @@ class BaseCDN:
 
 	def get_patch_config(self, key: str) -> PatchConfig:
 		return PatchConfig(self.load_config(key))
+
+	def get_product_config(self, key: str) -> dict:
+		return json.loads(self.fetch_config_data(key))
 
 	def get_index(self, key: str, verify: bool=False) -> ArchiveIndex:
 		return ArchiveIndex(self.fetch_index(key), key, verify=verify)
