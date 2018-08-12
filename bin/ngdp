@@ -159,7 +159,7 @@ class App:
 		else:
 			cdn = cdns[0]
 
-		click.echo(f"Using {cdn.name} (available: {available_cdns})")
+		tqdm.write(f"Using {cdn.name} (available: {available_cdns})")
 
 		return cdn
 
@@ -212,7 +212,10 @@ class App:
 		# 10. do stuff for patch files
 		# Finally... resolve all dangling data references
 
+		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
+
 		# Look up all available CDNs and choose one to use
+		bar.set_description_str("Receiving CDN list")
 		try:
 			cdns = keg.get_cdns()
 		except NetworkError:
@@ -222,15 +225,18 @@ class App:
 		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.objects_path)
 
 		# Find all available versions
+		bar.set_description_str("Receiving version list")
 		versions = keg.get_versions()
 
 		# Update blobs
 		for blob_name in ("game", "install"):
+			bar.set_description_str(f"Receiving {blob_name} blob")
 			try:
 				keg.get_blob(blob_name)
 			except NetworkError:
 				# Blobs are optional
 				pass
+		bar.close()
 
 		config_to_fetch = set()
 		for version in versions:
