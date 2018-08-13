@@ -5,6 +5,8 @@ from binascii import hexlify
 from io import BytesIO
 from typing import IO, Iterable, List, Tuple
 
+from .utils import verify_data
+
 
 # 00000000: 424c 5445 0000 00b4 0f00 0007 0000 0017  BLTE............
 #           ^ 4-byte BLTE magic
@@ -93,7 +95,6 @@ class BLTEDecoder:
 
 		for encoded_size, decoded_size, md5 in self.block_table:
 			data = self.fp.read(encoded_size)
-			if self.verify:
-				assert md5 == hashlib.md5(data).hexdigest()
+			verify_data("BLTE block", data, md5, self.verify)
 			self._block_index += 1
 			yield data

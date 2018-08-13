@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 from typing import IO
@@ -8,7 +7,7 @@ import requests
 from . import blizini, blte
 from .archive import ArchiveIndex
 from .configfile import BuildConfig, CDNConfig, PatchConfig
-from .utils import partition_hash
+from .utils import partition_hash, verify_data
 
 
 class BaseCDN:
@@ -21,15 +20,13 @@ class BaseCDN:
 	def fetch_config(self, key: str, verify: bool=True) -> bytes:
 		with self.get_item(f"/config/{partition_hash(key)}") as resp:
 			data = resp.read()
-		if verify:
-			assert hashlib.md5(data).hexdigest() == key
+		verify_data("config file", data, key, verify)
 		return data
 
 	def fetch_config_data(self, key: str, verify: bool=False) -> bytes:
 		with self.get_config_item("/" + partition_hash(key)) as resp:
 			data = resp.read()
-		if verify:
-			assert hashlib.md5(data).hexdigest() == key
+		verify_data("config data", data, key, verify)
 		return data
 
 	def fetch_index(self, key: str) -> bytes:
@@ -39,9 +36,8 @@ class BaseCDN:
 	def fetch_patch(self, key: str, verify: bool=False) -> bytes:
 		with self.get_item(f"/patch/{partition_hash(key)}") as resp:
 			data = resp.read()
-			if verify:
-				assert hashlib.md5(data).hexdigest() == key
-			return data
+		verify_data("patch file", data, key, verify)
+		return data
 
 	def load_config(self, key: str) -> dict:
 		return blizini.load(self.fetch_config(key).decode())

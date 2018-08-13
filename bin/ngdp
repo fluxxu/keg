@@ -366,7 +366,12 @@ def init(ctx):
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def fetch(ctx, remote, metadata_only=True):
-	ctx.obj.fetch(remote, metadata_only)
+	from keg.exceptions import IntegrityVerificationError
+
+	try:
+		ctx.obj.fetch(remote, metadata_only)
+	except IntegrityVerificationError as e:
+		raise click.ClickException(str(e))
 
 
 @main.command("fetch-all")
@@ -374,7 +379,7 @@ def fetch(ctx, remote, metadata_only=True):
 @click.pass_context
 def fetch_all(ctx, metadata_only=True):
 	for remote in ctx.obj.fetchable_remotes:
-		ctx.obj.fetch(remote, metadata_only)
+		fetch(ctx, remote, metadata_only=metadata_only)
 
 
 @main.group()
