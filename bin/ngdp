@@ -492,5 +492,38 @@ def checkout(ctx, version):
 	print(f"Checking out {key}...")
 
 
+@main.command("show")
+@click.argument("remote")
+@click.argument("object")
+@click.pass_context
+def show_object(ctx, remote, object):
+	remote = ctx.obj._clean_remote(remote)
+	if object.lower() == "buildconfig":
+		column = "BuildConfig"
+	elif object.lower() == "cdnconfig":
+		column = "CDNConfig"
+	elif object.lower() == "productconfig":
+		column = "ProductConfig"
+	else:
+		raise click.ClickException(f"Unknown object type: {object}")
+
+	cursor = ctx.obj.db.cursor()
+
+	cursor.execute(f"""
+		SELECT distinct("{column}")
+		FROM versions
+		WHERE
+			remote = ? AND
+			"{column}" != ''
+	""", (remote, ))
+
+	results = cursor.fetchall()
+	if not results:
+		raise click.ClickException(f"No known {column} for {remote}.")
+
+	for res, in results:
+		click.echo(f"{column}: {res}")
+
+
 if __name__ == "__main__":
 	main()
