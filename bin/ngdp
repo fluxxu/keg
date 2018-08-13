@@ -384,7 +384,7 @@ def fetch(ctx, remote, metadata_only=True):
 @click.pass_context
 def fetch_all(ctx, metadata_only=True):
 	for remote in ctx.obj.fetchable_remotes:
-		fetch(ctx, remote, metadata_only=metadata_only)
+		ctx.invoke(fetch, remote=remote, metadata_only=metadata_only)
 
 
 @main.group()
