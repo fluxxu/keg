@@ -17,7 +17,7 @@ class BaseCDN:
 	def get_config_item(self, path: str):
 		raise NotImplementedError()
 
-	def fetch_config(self, key: str, verify: bool=True) -> bytes:
+	def fetch_config(self, key: str, verify: bool=False) -> bytes:
 		with self.get_item(f"/config/{partition_hash(key)}") as resp:
 			data = resp.read()
 		verify_data("config file", data, key, verify)
@@ -29,7 +29,7 @@ class BaseCDN:
 		verify_data("config data", data, key, verify)
 		return data
 
-	def fetch_index(self, key: str) -> bytes:
+	def fetch_index(self, key: str, verify: bool=False) -> bytes:
 		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
 			return resp.read()
 
@@ -39,20 +39,22 @@ class BaseCDN:
 		verify_data("patch file", data, key, verify)
 		return data
 
-	def load_config(self, key: str) -> dict:
-		return blizini.load(self.fetch_config(key).decode())
+	def load_config(self, key: str, verify: bool=False) -> dict:
+		return blizini.load(
+			self.fetch_config(key, verify=verify).decode()
+		)
 
-	def get_build_config(self, key: str) -> BuildConfig:
-		return BuildConfig(self.load_config(key))
+	def get_build_config(self, key: str, verify: bool=False) -> BuildConfig:
+		return BuildConfig(self.load_config(key, verify))
 
-	def get_cdn_config(self, key: str) -> CDNConfig:
-		return CDNConfig(self.load_config(key))
+	def get_cdn_config(self, key: str, verify: bool=False) -> CDNConfig:
+		return CDNConfig(self.load_config(key, verify))
 
-	def get_patch_config(self, key: str) -> PatchConfig:
-		return PatchConfig(self.load_config(key))
+	def get_patch_config(self, key: str, verify: bool=False) -> PatchConfig:
+		return PatchConfig(self.load_config(key, verify))
 
-	def get_product_config(self, key: str) -> dict:
-		return json.loads(self.fetch_config_data(key))
+	def get_product_config(self, key: str, verify: bool=False) -> dict:
+		return json.loads(self.fetch_config_data(key, verify))
 
 	def get_index(self, key: str, verify: bool=False) -> ArchiveIndex:
 		return ArchiveIndex(self.fetch_index(key), key, verify=verify)
@@ -62,7 +64,7 @@ class BaseCDN:
 			data = blte.BLTEDecoder(resp, key, verify=verify)
 			return b"".join(data.blocks)
 
-	def download_data(self, key: str) -> IO:
+	def download_data(self, key: str, verify: bool=False) -> IO:
 		return self.get_item(f"/data/{partition_hash(key)}")
 
 
