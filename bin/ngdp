@@ -203,7 +203,7 @@ class App:
 		from keg.archive import ArchiveGroup
 		from keg.encoding import EncodingFile
 		from keg.cdn import CacheableCDNWrapper
-		from keg.exceptions import NetworkError
+		from keg.exceptions import NetworkError, IntegrityVerificationError
 
 		remote = self._clean_remote(remote)
 		click.echo(f"Fetching {remote}")
@@ -275,7 +275,12 @@ class App:
 
 		indices_to_fetch = set()
 		for version in versions:
-			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
+			try:
+				cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
+			except IntegrityVerificationError:
+				# TODO: Check for this earlier (in product config), clean up objects.
+				click.echo("This repository looks encrypted. No key available. Aborting fetch.")
+				return
 			for archive_key in cdn_config.archives:
 				if not cdn_wrapper.has_index(archive_key):
 					indices_to_fetch.add(archive_key)
