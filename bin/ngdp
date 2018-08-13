@@ -263,8 +263,12 @@ class App:
 		for key in {v.product_config for v in versions}:
 			if not key:
 				continue
-			bar.set_description_str(f"Receiving product config: {key}")
-			product_config = cdn_wrapper.get_product_config(key)
+
+			if not cdn_wrapper.has_config_item(key):
+				bar.set_description_str(f"Receiving product config: {key}")
+				cdn_wrapper.fetch_config_data(key, verify=self.verify)
+
+			product_config = cdn_wrapper.get_product_config(key, verify=self.verify)
 			assert product_config
 
 		bar.close()
