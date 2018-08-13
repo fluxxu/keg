@@ -477,23 +477,6 @@ def inspect(ctx, remote):
 		headers=("Build Config", "Build ID", "Version")
 	))
 
-	def find_version(self, version: str) -> str:
-		cursor = self.db.cursor()
-		cursor.execute("""
-			SELECT distinct(BuildConfig)
-			FROM versions
-			WHERE
-				VersionsName = ? OR BuildID = ?
-		""", (version, version))
-		results = cursor.fetchall()
-		if len(results) == 1:
-			return results[0][0]
-		else:
-			raise AmbiguousVersionError(
-				f"Version {repr(version)} is ambiguous",
-				sorted(set(chain(*results)))
-			)
-
 
 @main.command()
 @click.argument("version")
