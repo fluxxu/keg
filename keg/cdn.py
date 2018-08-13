@@ -152,6 +152,10 @@ class CacheableCDNWrapper(BaseCDN):
 		path = f"/patch/{partition_hash(key)}"
 		return self.local_cdn.exists(path)
 
+	def has_config_item(self, key: str) -> bool:
+		path = f"/{partition_hash(key)}"
+		return self.local_cdn.config_exists(path)
+
 
 class HTTPCacheWrapper:
 	def __init__(self, response: requests.Response, path: str) -> None:
