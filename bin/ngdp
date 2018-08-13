@@ -68,7 +68,7 @@ class App:
 
 		for key in iterable:
 			bar.set_description(message + " " + key)
-			callback(key)
+			callback(key, verify=self.verify)
 			bar.update()
 		bar.close()
 
@@ -285,7 +285,7 @@ class App:
 		indices_to_fetch = set()
 		for version in versions:
 			try:
-				cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
+				cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config, verify=self.verify)
 			except IntegrityVerificationError:
 				# TODO: Check for this earlier (in product config), clean up objects.
 				click.echo("This repository looks encrypted. No key available. Aborting fetch.")
@@ -303,7 +303,9 @@ class App:
 		loose_files_to_fetch = set()
 		patch_files_to_fetch = set()
 		for version in versions:
-			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config)
+			cdn_config = cdn_wrapper.get_cdn_config(
+				version.cdn_config, verify=self.verify
+			)
 			# get the archive list
 
 			for archive in cdn_config.archives:
@@ -314,15 +316,18 @@ class App:
 			archive_group = ArchiveGroup(
 				cdn_config.archives,
 				cdn_config.archive_group,
-				cdn_wrapper
+				cdn_wrapper,
+				verify=self.verify
 			)
 
-			build_config = cdn_wrapper.get_build_config(version.build_config)
+			build_config = cdn_wrapper.get_build_config(
+				version.build_config, verify=self.verify
+			)
 			content_key, encoding_key = build_config.encodings  # TODO verify content_key
 
 			if encoding_key:
 				encoding_file = EncodingFile(
-					cdn_wrapper.download_blte_data(encoding_key)
+					cdn_wrapper.download_blte_data(encoding_key, verify=self.verify)
 				)
 
 				# Download loose files
@@ -332,7 +337,9 @@ class App:
 
 			# Download patch files
 			if build_config.patch_config:
-				patch_config = cdn_wrapper.get_patch_config(build_config.patch_config)
+				patch_config = cdn_wrapper.get_patch_config(
+					build_config.patch_config, verify=self.verify
+				)
 				for patch_entry in patch_config.patch_entries:
 					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
 						if not cdn_wrapper.has_patch(patch_key):
