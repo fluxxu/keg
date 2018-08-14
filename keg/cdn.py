@@ -8,6 +8,7 @@ import requests
 from . import blizini, blte
 from .archive import ArchiveIndex
 from .configfile import BuildConfig, CDNConfig, PatchConfig
+from .exceptions import NetworkError
 from .utils import partition_hash, verify_data
 
 
@@ -79,7 +80,11 @@ class RemoteCDN(BaseCDN):
 		self.config_path = config_path
 
 	def get_response(self, path: str) -> requests.Response:
-		return requests.get(urljoin(self.server, path), stream=True)
+		url = urljoin(self.server, path)
+		ret = requests.get(url, stream=True)
+		if ret.status_code != 200:
+			raise NetworkError(f"Unexpected status code {ret.status_code} for {url}")
+		return ret
 
 	def get_item(self, path: str) -> IO:
 		return self.get_response(self.path + path).raw
