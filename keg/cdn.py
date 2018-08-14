@@ -79,6 +79,15 @@ class RemoteCDN(BaseCDN):
 		self.path = path
 		self.config_path = config_path
 
+	def _join_path(self, base_path: str, path: str):
+		# Final path always has to end with a "/"
+		# Actual path can't begin with a "/"
+		# urljoin("/foo/bar", "baz") => "/foo/baz"
+		# urljoin("/foo/bar/", "baz") => "/foo/bar/baz"
+		# urljoin("/foo/bar//", "baz") => "/foo/bar/baz"
+		# urljoin("/foo/bar/", "/baz") => "/baz"
+		return urljoin(base_path + "/", path.lstrip("/"))
+
 	def get_response(self, path: str) -> requests.Response:
 		url = urljoin(self.server, path)
 		ret = requests.get(url, stream=True)
@@ -87,10 +96,12 @@ class RemoteCDN(BaseCDN):
 		return ret
 
 	def get_item(self, path: str) -> IO:
-		return self.get_response(self.path + path).raw
+		final_path = self._join_path(self.path, path)
+		return self.get_response(final_path).raw
 
 	def get_config_item(self, path: str) -> IO:
-		return self.get_response(self.config_path + path).raw
+		final_path = self._join_path(self.config_path, path)
+		return self.get_response(final_path).raw
 
 
 class LocalCDN(BaseCDN):
@@ -130,7 +141,7 @@ class CacheableCDNWrapper(BaseCDN):
 	def get_item(self, path: str) -> IO:
 		if not self.local_cdn.exists(path):
 			cache_file_path = self.local_cdn.get_full_path(path)
-			remote_path = self.remote_cdn.path + path
+			remote_path = self.remote_cdn._join_path(self.remote_cdn.path, path)
 			response = self.remote_cdn.get_response(remote_path)
 			f = HTTPCacheWrapper(response, cache_file_path)
 			f.close()
@@ -140,7 +151,7 @@ class CacheableCDNWrapper(BaseCDN):
 	def get_config_item(self, path: str) -> IO:
 		if not self.local_cdn.config_exists(path):
 			cache_file_path = self.local_cdn.get_config_path(path)
-			remote_path = self.remote_cdn.config_path + path
+			remote_path = self.remote_cdn._join_path(self.remote_cdn.config_path, path)
 			response = self.remote_cdn.get_response(remote_path)
 			f = HTTPCacheWrapper(response, cache_file_path)
 			f.close()
