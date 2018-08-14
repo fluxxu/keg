@@ -178,7 +178,7 @@ class App:
 			)
 
 		if not cdns:
-			raise RuntimeError("No CDNs available.")
+			raise click.ClickException("No CDNs available. Use --cdn to specify one.")
 
 		available_cdns = ", ".join(cdn.name for cdn in cdns)
 		cdns_lookup = {cdn.name.lower(): cdn for cdn in cdns}
@@ -438,6 +438,37 @@ def fetch(ctx, remote, metadata_only=True):
 def fetch_all(ctx, metadata_only=True):
 	for remote in ctx.obj.fetchable_remotes:
 		ctx.invoke(fetch, remote=remote, metadata_only=metadata_only)
+
+
+@main.command("fetch-object")
+@click.argument("keys", nargs=-1, required=True)
+@click.option("--type", default="data", type=click.Choice(["data", "config"]))
+@click.pass_context
+def fetch_object(ctx, keys, type):
+	from keg.exceptions import NetworkError
+
+	cdn = ctx.obj._choose_cdn([])
+	bar = tqdm(unit="file", ncols=0, leave=False, total=len(keys))
+
+	if type == "data":
+		for key in keys:
+			msg = f"Fetching {key}..."
+			bar.set_description(f"Fetching {key}...")
+			if cdn.has_data(key):
+				bar.write(f"{msg} Up-to-date.")
+			else:
+				try:
+					cdn.download_data(key, verify=ctx.obj.verify)
+					bar.write(f"{msg} OK")
+				except NetworkError:
+					bar.write(f"{msg} Not found.")
+
+			bar.update()
+
+		bar.close()
+
+	elif type == "config":
+		raise NotImplementedError()
 
 
 @main.group()
