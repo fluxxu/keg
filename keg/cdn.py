@@ -1,6 +1,7 @@
 import json
 import os
 from typing import IO
+from urllib.parse import urljoin
 
 import requests
 
@@ -78,8 +79,7 @@ class RemoteCDN(BaseCDN):
 		self.config_path = config_path
 
 	def get_response(self, path: str) -> requests.Response:
-		url = f"{self.server}/{path}"
-		return requests.get(url, stream=True)
+		return requests.get(urljoin(self.server, path), stream=True)
 
 	def get_item(self, path: str) -> IO:
 		return self.get_response(self.path + path).raw
