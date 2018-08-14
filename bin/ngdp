@@ -4,6 +4,7 @@ import re
 import sqlite3
 from itertools import chain
 from typing import List, Set
+from urllib.parse import urlparse
 
 import click
 import toml
@@ -34,6 +35,7 @@ class App:
 		self.objects_path = os.path.join(self.ngdp_path, "objects")
 		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
 		self.db_path = os.path.join(self.ngdp_path, "keg.db")
+		self.force_cdn = ""
 		self.init_config()
 
 		if os.path.exists(self.ngdp_path):
@@ -161,7 +163,19 @@ class App:
 			toml.dump(self.config, f)
 
 	def _choose_cdn(self, cdns):
-		from keg.cdn import CacheableCDNWrapper
+		from keg.cdn import CacheableCDNWrapper, DEFAULT_CONFIG_PATH
+
+		if self.force_cdn:
+			url = urlparse(self.force_cdn)
+			if not url.scheme or not url.netloc or not url.path:
+				raise click.ClickException(f"Invalid CDN url: {self.force_cdn}")
+
+			return CacheableCDNWrapper(
+				base_dir=self.objects_path,
+				server=f"{url.scheme}://{url.netloc}",
+				path=url.path,
+				config_path=DEFAULT_CONFIG_PATH,
+			)
 
 		if not cdns:
 			raise RuntimeError("No CDNs available.")
@@ -388,13 +402,15 @@ class App:
 
 @click.group()
 @click.option("--ngdp-dir", default=".ngdp")
+@click.option("--cdn")
 @click.pass_context
-def main(ctx, ngdp_dir):
+def main(ctx, ngdp_dir, cdn):
 	# dev hack
 	import sys
 	sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 	ctx.obj = App(ngdp_dir)
+	ctx.obj.force_cdn = cdn
 
 
 @main.command()
