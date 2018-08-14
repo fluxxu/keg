@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-import os
+import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa isort:skip
+
 import re
 import sqlite3
-import sys
 from glob import iglob
 from itertools import chain
 from typing import List, Set
@@ -12,6 +12,13 @@ import click
 import toml
 from tabulate import tabulate
 from tqdm import tqdm
+
+from keg import Keg
+from keg.archive import ArchiveGroup
+from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
+from keg.encoding import EncodingFile
+from keg.exceptions import IntegrityVerificationError, NetworkError
+from keg.utils import verify_data
 
 
 DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
@@ -165,7 +172,6 @@ class App:
 			toml.dump(self.config, f)
 
 	def _choose_cdn(self, cdns):
-		from keg.cdn import CacheableCDNWrapper, DEFAULT_CONFIG_PATH
 
 		if self.force_cdn:
 			url = urlparse(self.force_cdn)
@@ -229,14 +235,9 @@ class App:
 			)
 
 	def get_remote(self, remote: str):
-		from keg import Keg
 		return Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
 
 	def fetch(self, remote: str, metadata_only: bool=False):
-		from keg.archive import ArchiveGroup
-		from keg.encoding import EncodingFile
-		from keg.exceptions import NetworkError
-
 		remote = self._clean_remote(remote)
 		click.echo(f"Fetching {remote}")
 
@@ -407,8 +408,6 @@ class App:
 @click.option("--cdn")
 @click.pass_context
 def main(ctx, ngdp_dir, cdn):
-	# dev hack
-	sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 	ctx.obj = App(ngdp_dir)
 	ctx.obj.force_cdn = cdn
@@ -425,8 +424,6 @@ def init(ctx):
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def fetch(ctx, remote, metadata_only=True):
-	from keg.exceptions import IntegrityVerificationError
-
 	try:
 		ctx.obj.fetch(remote, metadata_only)
 	except IntegrityVerificationError as e:
@@ -446,8 +443,6 @@ def fetch_all(ctx, metadata_only=True):
 @click.option("--type", default="data", type=click.Choice(["data", "config"]))
 @click.pass_context
 def fetch_object(ctx, keys, type):
-	from keg.exceptions import NetworkError
-
 	cdn = ctx.obj._choose_cdn([])
 	bar = tqdm(unit="file", ncols=0, leave=False, total=len(keys))
 
@@ -598,9 +593,6 @@ def show_object(ctx, remote, object):
 @click.option("--delete", is_flag=True)
 @click.pass_context
 def fsck(ctx, delete):
-	from keg.utils import verify_data
-	from keg.exceptions import IntegrityVerificationError
-
 	def _get_objects(patterns):
 		return [
 			f for pattern in patterns
