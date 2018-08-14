@@ -203,8 +203,11 @@ class App:
 				sorted(set(chain(*results)))
 			)
 
-	def fetch(self, remote: str, metadata_only: bool=False):
+	def get_remote(self, remote: str):
 		from keg import Keg
+		return Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
+
+	def fetch(self, remote: str, metadata_only: bool=False):
 		from keg.archive import ArchiveGroup
 		from keg.encoding import EncodingFile
 		from keg.cdn import CacheableCDNWrapper
@@ -213,7 +216,7 @@ class App:
 		remote = self._clean_remote(remote)
 		click.echo(f"Fetching {remote}")
 
-		keg = Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
+		keg = self.get_remote(remote)
 
 		# keg fetch
 		# 1. get the version
