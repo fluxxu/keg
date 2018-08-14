@@ -10,6 +10,9 @@ from .configfile import BuildConfig, CDNConfig, PatchConfig
 from .utils import partition_hash, verify_data
 
 
+DEFAULT_CONFIG_PATH = "tpr/configs/data"
+
+
 class BaseCDN:
 	def get_item(self, path: str):
 		raise NotImplementedError()
@@ -69,11 +72,10 @@ class BaseCDN:
 
 
 class RemoteCDN(BaseCDN):
-	def __init__(self, cdn):
-		assert cdn.all_servers
-		self.server = cdn.all_servers[0]
-		self.path = cdn.path
-		self.config_path = cdn.config_path
+	def __init__(self, server: str, path: str, config_path: str) -> None:
+		self.server = server
+		self.path = path
+		self.config_path = config_path
 
 	def get_response(self, path: str) -> requests.Response:
 		url = f"{self.server}/{path}"
@@ -112,11 +114,13 @@ class LocalCDN(BaseCDN):
 
 
 class CacheableCDNWrapper(BaseCDN):
-	def __init__(self, cdns_response, base_dir: str) -> None:
+	def __init__(
+		self, base_dir: str, server: str, path: str, config_path: str=DEFAULT_CONFIG_PATH
+	) -> None:
 		if not os.path.exists(base_dir):
 			os.makedirs(base_dir)
 		self.local_cdn = LocalCDN(base_dir)
-		self.remote_cdn = RemoteCDN(cdns_response)
+		self.remote_cdn = RemoteCDN(server, path, config_path)
 
 	def get_item(self, path: str) -> IO:
 		if not self.local_cdn.exists(path):

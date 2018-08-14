@@ -241,7 +241,12 @@ class App:
 			raise click.ClickException(f"NGDP repository {remote} not found")
 		cdn = self._choose_cdn(cdns)
 
-		cdn_wrapper = CacheableCDNWrapper(cdn, base_dir=self.objects_path)
+		cdn_wrapper = CacheableCDNWrapper(
+			base_dir=self.objects_path,
+			server=cdn.all_servers[0],
+			path=cdn.path,
+			config_path=cdn.config_path,
+		)
 
 		# Find all available versions
 		bar.set_description_str("Receiving version list")
