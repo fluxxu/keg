@@ -2,6 +2,8 @@
 import os
 import re
 import sqlite3
+import sys
+from glob import iglob
 from itertools import chain
 from typing import List, Set
 from urllib.parse import urlparse
@@ -406,7 +408,6 @@ class App:
 @click.pass_context
 def main(ctx, ngdp_dir, cdn):
 	# dev hack
-	import sys
 	sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 	ctx.obj = App(ngdp_dir)
@@ -591,6 +592,65 @@ def show_object(ctx, remote, object):
 
 	for res, in results:
 		click.echo(f"{column}: {res}")
+
+
+@main.command("fsck")
+@click.pass_context
+def fsck(ctx):
+	from keg.utils import verify_data
+	from keg.exceptions import IntegrityVerificationError
+
+	def _get_objects(patterns):
+		return [
+			f for pattern in patterns
+			for f in iglob(os.path.join(ctx.obj.ngdp_path, pattern))
+		]
+
+	objects = _get_objects((
+		"responses/blob/*/*/*/*",
+		"responses/blobs/*/*/*",
+		"responses/cdns/*/*/*",
+		"responses/versions/*/*/*",
+		"objects/patch/*/*/*",
+		"objects/config/*/*/*",
+		"objects/configs/data/*/*/*",
+		"objects/data/*/*/*"
+	))
+
+	fail = 0
+	bar = tqdm(unit="object", ncols=0, leave=True, total=len(objects))
+	for path in objects:
+		bar.update()
+		base_path = path[len(ctx.obj.ngdp_path) + 1:]  # Strip the full path to .ngdp
+		key = os.path.basename(path)
+		bar.set_description(f"Checking objects: {key} ({base_path})")
+		if key.endswith(".keg_temp"):
+			tqdm.write(f"Dangling file: {path}", sys.stderr)
+			continue
+
+		is_data = base_path.startswith("objects/data/")
+		if len(key) != 32 and not (is_data and key.endswith(".index")):
+			tqdm.write(f"Unknown file: {path}", sys.stderr)
+			continue
+
+		if is_data:
+			# Not implemented
+			continue
+		else:
+			with open(path, "rb") as f:
+				try:
+					verify_data("object on disk", f.read(), key, verify=True)
+				except IntegrityVerificationError as e:
+					tqdm.write(f"Integrity error: {path}", sys.stderr)
+					tqdm.write(str(e), sys.stderr)
+					fail += 1
+
+	bar.set_description("Checking responses: Done.")
+	bar.close()
+
+	if fail:
+		tqdm.write(f"{fail} bad objects!")
+		exit(1)
 
 
 if __name__ == "__main__":
