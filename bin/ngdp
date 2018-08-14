@@ -595,8 +595,9 @@ def show_object(ctx, remote, object):
 
 
 @main.command("fsck")
+@click.option("--delete", is_flag=True)
 @click.pass_context
-def fsck(ctx):
+def fsck(ctx, delete):
 	from keg.utils import verify_data
 	from keg.exceptions import IntegrityVerificationError
 
@@ -619,18 +620,23 @@ def fsck(ctx):
 
 	fail = 0
 	bar = tqdm(unit="object", ncols=0, leave=True, total=len(objects))
+	deleted_str = " (deleted)" if delete else ""
 	for path in objects:
 		bar.update()
 		base_path = path[len(ctx.obj.ngdp_path) + 1:]  # Strip the full path to .ngdp
 		key = os.path.basename(path)
 		bar.set_description(f"Checking objects: {key} ({base_path})")
 		if key.endswith(".keg_temp"):
-			tqdm.write(f"Dangling file: {path}", sys.stderr)
+			tqdm.write(f"Dangling file: {path}{deleted_str}", sys.stderr)
+			if delete:
+				os.remove(path)
 			continue
 
 		is_data = base_path.startswith("objects/data/")
 		if len(key) != 32 and not (is_data and key.endswith(".index")):
-			tqdm.write(f"Unknown file: {path}", sys.stderr)
+			if delete:
+				os.remove(path)
+			tqdm.write(f"Unknown file: {path}{deleted_str}", sys.stderr)
 			continue
 
 		if is_data:
@@ -641,7 +647,9 @@ def fsck(ctx):
 				try:
 					verify_data("object on disk", f.read(), key, verify=True)
 				except IntegrityVerificationError as e:
-					tqdm.write(f"Integrity error: {path}", sys.stderr)
+					if delete:
+						os.remove(path)
+					tqdm.write(f"Integrity error: {path}{deleted_str}", sys.stderr)
 					tqdm.write(str(e), sys.stderr)
 					fail += 1
 
