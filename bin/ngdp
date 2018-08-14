@@ -161,6 +161,8 @@ class App:
 			toml.dump(self.config, f)
 
 	def _choose_cdn(self, cdns):
+		from keg.cdn import CacheableCDNWrapper
+
 		if not cdns:
 			raise RuntimeError("No CDNs available.")
 
@@ -177,7 +179,14 @@ class App:
 
 		tqdm.write(f"Using {cdn.name} (available: {available_cdns})")
 
-		return cdn
+		assert cdn.all_servers
+
+		return CacheableCDNWrapper(
+			base_dir=self.objects_path,
+			server=cdn.all_servers[0],
+			path=cdn.path,
+			config_path=cdn.config_path,
+		)
 
 	def _clean_remote(self, remote: str) -> str:
 		if "://" not in remote:
@@ -210,7 +219,6 @@ class App:
 	def fetch(self, remote: str, metadata_only: bool=False):
 		from keg.archive import ArchiveGroup
 		from keg.encoding import EncodingFile
-		from keg.cdn import CacheableCDNWrapper
 		from keg.exceptions import NetworkError
 
 		remote = self._clean_remote(remote)
@@ -239,14 +247,8 @@ class App:
 			cdns = keg.get_cdns()
 		except NetworkError:
 			raise click.ClickException(f"NGDP repository {remote} not found")
-		cdn = self._choose_cdn(cdns)
 
-		cdn_wrapper = CacheableCDNWrapper(
-			base_dir=self.objects_path,
-			server=cdn.all_servers[0],
-			path=cdn.path,
-			config_path=cdn.config_path,
-		)
+		cdn = self._choose_cdn(cdns)
 
 		# Find all available versions
 		bar.set_description_str("Receiving version list")
@@ -275,11 +277,11 @@ class App:
 			if not product_key or product_key in decryption_keys:
 				pass
 
-			if not cdn_wrapper.has_config_item(product_key):
+			if not cdn.has_config_item(product_key):
 				bar.set_description_str(f"Receiving product config: {product_key}")
-				cdn_wrapper.fetch_config_data(product_key, verify=self.verify)
+				cdn.fetch_config_data(product_key, verify=self.verify)
 
-			product_config = cdn_wrapper.get_product_config(product_key, verify=self.verify)
+			product_config = cdn.get_product_config(product_key, verify=self.verify)
 
 			# Check if the version is encrypted.
 			# Best guess: decryption key name is in the product config.
@@ -299,21 +301,21 @@ class App:
 
 		config_to_fetch = set()
 		for version in versions:
-			if not cdn_wrapper.has_config(version.build_config):
+			if not cdn.has_config(version.build_config):
 				config_to_fetch.add(version.build_config)
-			if not cdn_wrapper.has_config(version.cdn_config):
+			if not cdn.has_config(version.cdn_config):
 				config_to_fetch.add(version.cdn_config)
 
-		self._download("Fetching config...", config_to_fetch, cdn_wrapper.fetch_config)
+		self._download("Fetching config...", config_to_fetch, cdn.fetch_config)
 
 		indices_to_fetch = set()
 		for version in versions:
-			cdn_config = cdn_wrapper.get_cdn_config(version.cdn_config, verify=self.verify)
+			cdn_config = cdn.get_cdn_config(version.cdn_config, verify=self.verify)
 			for archive_key in cdn_config.archives:
-				if not cdn_wrapper.has_index(archive_key):
+				if not cdn.has_index(archive_key):
 					indices_to_fetch.add(archive_key)
 
-		self._download("Fetching indices...", indices_to_fetch, cdn_wrapper.fetch_index)
+		self._download("Fetching indices...", indices_to_fetch, cdn.fetch_index)
 
 		if metadata_only:
 			return
@@ -322,56 +324,56 @@ class App:
 		loose_files_to_fetch = set()
 		patch_files_to_fetch = set()
 		for version in versions:
-			cdn_config = cdn_wrapper.get_cdn_config(
+			cdn_config = cdn.get_cdn_config(
 				version.cdn_config, verify=self.verify
 			)
 			# get the archive list
 
 			for archive in cdn_config.archives:
-				if not cdn_wrapper.has_data(archive):
+				if not cdn.has_data(archive):
 					archives_to_fetch.add(archive)
 
 			# Create the merged archive group
 			archive_group = ArchiveGroup(
 				cdn_config.archives,
 				cdn_config.archive_group,
-				cdn_wrapper,
+				cdn,
 				verify=self.verify
 			)
 
-			build_config = cdn_wrapper.get_build_config(
+			build_config = cdn.get_build_config(
 				version.build_config, verify=self.verify
 			)
 			content_key, encoding_key = build_config.encodings  # TODO verify content_key
 
 			if encoding_key:
 				encoding_file = EncodingFile(
-					cdn_wrapper.download_blte_data(encoding_key, verify=self.verify)
+					cdn.download_blte_data(encoding_key, verify=self.verify)
 				)
 
 				# Download loose files
 				for key in encoding_file.keys:
-					if not archive_group.has_file(key) and not cdn_wrapper.has_data(key):
+					if not archive_group.has_file(key) and not cdn.has_data(key):
 						loose_files_to_fetch.add(key)
 
 			# Download patch files
 			if build_config.patch_config:
-				patch_config = cdn_wrapper.get_patch_config(
+				patch_config = cdn.get_patch_config(
 					build_config.patch_config, verify=self.verify
 				)
 				for patch_entry in patch_config.patch_entries:
 					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-						if not cdn_wrapper.has_patch(patch_key):
+						if not cdn.has_patch(patch_key):
 							patch_files_to_fetch.add(patch_key)
 
 		self._download(
-			"Fetching archives...", archives_to_fetch, cdn_wrapper.download_data
+			"Fetching archives...", archives_to_fetch, cdn.download_data
 		)
 		self._download(
-			"Fetching loose files...", loose_files_to_fetch, cdn_wrapper.download_data
+			"Fetching loose files...", loose_files_to_fetch, cdn.download_data
 		)
 		self._download(
-			"Fetching patch files...", patch_files_to_fetch, cdn_wrapper.fetch_patch
+			"Fetching patch files...", patch_files_to_fetch, cdn.fetch_patch
 		)
 
 		# whats left?
