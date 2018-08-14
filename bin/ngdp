@@ -260,16 +260,28 @@ class App:
 				# Blobs are optional
 				pass
 
-		for key in {v.product_config for v in versions}:
-			if not key:
-				continue
+		# Look at all product configs, find encrypted ones
+		decryption_keys = {}
+		for version in versions:
+			product_key = version.product_config
+			if not product_key or product_key in decryption_keys:
+				pass
 
-			if not cdn_wrapper.has_config_item(key):
-				bar.set_description_str(f"Receiving product config: {key}")
-				cdn_wrapper.fetch_config_data(key, verify=self.verify)
+			if not cdn_wrapper.has_config_item(product_key):
+				bar.set_description_str(f"Receiving product config: {product_key}")
+				cdn_wrapper.fetch_config_data(product_key, verify=self.verify)
 
-			product_config = cdn_wrapper.get_product_config(key, verify=self.verify)
-			assert product_config
+			product_config = cdn_wrapper.get_product_config(product_key, verify=self.verify)
+
+			# Check if the version is encrypted.
+			# Best guess: decryption key name is in the product config.
+			decryption_key_name = product_config.get("all", {}).get("config", {}).get(
+				"decryption_key_name", ""
+			)
+			if decryption_key_name and product_key not in decryption_keys:
+				tqdm.write(f"Build {version.build_config} ({version.versions_name}) is encrypted")
+				tqdm.write(f"Decryption key {repr(decryption_key_name)} required")
+				decryption_keys[product_key] = decryption_key_name
 
 		bar.close()
 
