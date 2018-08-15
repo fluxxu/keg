@@ -594,10 +594,10 @@ def show_object(ctx, remote, object):
 @click.pass_context
 def fsck(ctx, delete):
 	def _get_objects(patterns):
-		return [
+		return sorted(
 			f for pattern in patterns
 			for f in iglob(os.path.join(ctx.obj.ngdp_path, pattern))
-		]
+		)
 
 	objects = _get_objects((
 		"responses/blob/*/*/*/*",
