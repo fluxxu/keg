@@ -31,11 +31,11 @@ def looks_like_md5(s: str) -> bool:
 	return bool(re.match(r"[0-9a-f]{32}", s))
 
 
-def pretty_psv(psvfile):
+def pretty_psv(psvfile, tablefmt="psql"):
 	return tabulate([
 		[cell.replace(" ", "\n") for cell in row]
 		for row in psvfile
-	], headers=psvfile.header)
+	], headers=psvfile.header, tablefmt=tablefmt)
 
 
 class AmbiguousVersionError(click.ClickException):
