@@ -31,6 +31,13 @@ def looks_like_md5(s: str) -> bool:
 	return bool(re.match(r"[0-9a-f]{32}", s))
 
 
+def pretty_psv(psvfile):
+	return tabulate([
+		[cell.replace(" ", "\n") for cell in row]
+		for row in psvfile
+	], headers=psvfile.header)
+
+
 class AmbiguousVersionError(click.ClickException):
 	def __init__(self, msg, hints):
 		super().__init__(msg)
@@ -598,8 +605,8 @@ def show_log(ctx, remote, type):
 		click.echo(f"URL: {remote + column}\n")
 		if state_cache.exists(type, digest):
 			contents = state_cache.read(type, digest)
-			psvfile = psv.load(StringIO(contents))
-			click.secho(tabulate(psvfile, headers=psvfile.header), fg="black", bold=True)
+			table = pretty_psv(psv.load(StringIO(contents)))
+			click.secho(table, fg="black", bold=True)
 		else:
 			click.secho("(not available)", fg="red")
 		click.echo()
