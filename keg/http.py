@@ -63,6 +63,10 @@ class Versions(PSVResponse):
 		self.versions_name = row.VersionsName
 
 
+class BGDL(Versions):
+	pass
+
+
 class StatefulResponse:
 	def __init__(self, name: str, response: requests.Response) -> None:
 		self.name = name
@@ -114,6 +118,10 @@ class HttpBackend:
 	def get_blob(self, name: str) -> Tuple[Any, StatefulResponse]:
 		resp = self.get_response(f"/blob/{name}")
 		return json.loads(resp.content.decode()), resp
+
+	def get_bgdl(self) -> List[BGDL]:
+		psvfile, _ = self.get_psv("/bgdl")
+		return [BGDL(row) for row in psvfile]
 
 	def get_psv(self, path: str) -> Tuple[psv.PSVFile, StatefulResponse]:
 		resp = self.get_response(path)
