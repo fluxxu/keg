@@ -1,4 +1,3 @@
-import hashlib
 import struct
 import zlib
 from binascii import hexlify
@@ -44,12 +43,19 @@ def decode_block(data: bytes) -> bytes:
 	raise ValueError(f"Unknown block type {type}")
 
 
+def verify_blte_data(fp: IO, key: str):
+	dec = BLTEDecoder(fp, key, verify=True)
+	for block in dec.encoded_blocks:
+		# Iterating verifies the block
+		pass
+
+
 class BLTEDecoder:
-	def __init__(self, fp: IO, hash: str, verify: bool=False) -> None:
+	def __init__(self, fp: IO, key: str, verify: bool=False) -> None:
 		self.fp = fp
 		self.block_table: List[Tuple[int, int, str]] = []
 		self._block_index = 0
-		self.hash = hash
+		self.key = key
 		self.verify = verify
 		self.parse_header()
 
@@ -62,9 +68,8 @@ class BLTEDecoder:
 		assert self.fp.read(1) == b"\x0f"
 		block_info_data = self.fp.read(header_size - 9)
 		if self.verify:
-			assert self.hash == hashlib.md5(
-				blte_header_data + b"\x0f" + block_info_data
-			).hexdigest()
+			_data_to_verify = blte_header_data + b"\x0f" + block_info_data
+			verify_data("BLTE header", _data_to_verify, self.key, self.verify)
 
 		block_info = BytesIO(block_info_data)
 		self.parse_block_info(block_info)
