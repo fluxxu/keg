@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa isort:skip
-
 import re
 import sqlite3
 from glob import iglob
+from io import BytesIO
 from itertools import chain
 from typing import List, Set
 from urllib.parse import urlparse
@@ -14,7 +14,8 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from keg import Keg
-from keg.archive import ArchiveGroup
+from keg.archive import ArchiveGroup, ArchiveIndex
+from keg.blte import verify_blte_data
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
@@ -604,10 +605,10 @@ def fsck(ctx, delete):
 		"responses/blobs/*/*/*",
 		"responses/cdns/*/*/*",
 		"responses/versions/*/*/*",
-		"objects/patch/*/*/*",
 		"objects/config/*/*/*",
 		"objects/configs/data/*/*/*",
-		"objects/data/*/*/*"
+		"objects/data/*/*/*",
+		"objects/patch/*/*/*",
 	))
 
 	fail = 0
@@ -631,19 +632,34 @@ def fsck(ctx, delete):
 			tqdm.write(f"Unknown file: {path}{deleted_str}", sys.stderr)
 			continue
 
-		if is_data:
-			# Not implemented
-			continue
-		else:
-			with open(path, "rb") as f:
-				try:
+		with open(path, "rb") as f:
+			try:
+				if is_data:
+					if path.endswith(".index"):
+						key = key[:-len(".index")]
+						f.seek(-28, os.SEEK_END)
+						verify_data("archive index", f.read(), key, verify=True)
+					elif os.path.exists(path + ".index"):
+						with open(path + ".index", "rb") as index_file:
+							index = ArchiveIndex(index_file.read(), key, verify=False)
+							for item_key, item_size, item_offset in index.items:
+								f.seek(item_offset)
+								verify_blte_data(BytesIO(f.read(item_size)), item_key)
+
+					else:
+						verify_blte_data(f, key)
+				else:
 					verify_data("object on disk", f.read(), key, verify=True)
-				except IntegrityVerificationError as e:
-					if delete:
-						os.remove(path)
-					tqdm.write(f"Integrity error: {path}{deleted_str}", sys.stderr)
-					tqdm.write(str(e), sys.stderr)
-					fail += 1
+			except IntegrityVerificationError as e:
+				if delete:
+					os.remove(path)
+				tqdm.write(f"Integrity error: {path}{deleted_str}", sys.stderr)
+				tqdm.write(str(e), sys.stderr)
+				fail += 1
+			except Exception as e:
+				import traceback
+				tqdm.write(f"Error while verifying {path}", sys.stderr)
+				tqdm.write(traceback.format_exc(), sys.stderr)
 
 	bar.set_description("Checking responses: Done.")
 	bar.close()
