@@ -1,6 +1,15 @@
 import hashlib
+import os
 
 from .exceptions import IntegrityVerificationError
+
+
+def atomic_write(path: str, content: bytes) -> int:
+	temp_path = path + ".keg_temp"
+	with open(temp_path, "wb") as f:
+		ret = f.write(content)
+	os.rename(temp_path, path)
+	return ret
 
 
 def partition_hash(hash: str) -> str:
