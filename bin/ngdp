@@ -2,8 +2,9 @@
 import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa isort:skip
 import re
 import sqlite3
+from datetime import datetime
 from glob import iglob
-from io import BytesIO
+from io import BytesIO, StringIO
 from itertools import chain
 from typing import List, Set
 from urllib.parse import urlparse
@@ -13,12 +14,13 @@ import toml
 from tabulate import tabulate
 from tqdm import tqdm
 
-from keg import Keg
+from keg import Keg, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.blte import verify_blte_data
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
+from keg.http import StateCache
 from keg.utils import verify_data
 
 
@@ -562,6 +564,45 @@ def checkout(ctx, version):
 		key = version.lower()
 
 	print(f"Checking out {key}...")
+
+
+@main.command("log")
+@click.argument("remote")
+@click.option("--type", default="versions", type=click.Choice(["versions", "cdns"]))
+@click.pass_context
+def show_log(ctx, remote, type):
+	remote = ctx.obj._clean_remote(remote)
+	column = f"/{type}"
+
+	cursor = ctx.obj.db.cursor()
+	cursor.execute("""
+		SELECT digest, timestamp
+		FROM "responses"
+		WHERE
+			remote = ? AND
+			path = ?
+		ORDER BY timestamp
+	""", (remote, column))
+	results = cursor.fetchall()
+
+	state_cache = StateCache(ctx.obj.response_cache_dir)
+
+	last = ""
+	for digest, timestamp in results:
+		if digest == last:
+			# Skip contiguous digests (always only show oldest)
+			continue
+		last = digest
+		click.secho(f"{type} {digest}", fg="yellow")
+		click.echo("Date: " + datetime.fromtimestamp(timestamp).isoformat() + "Z")
+		click.echo(f"URL: {remote + column}\n")
+		if state_cache.exists(type, digest):
+			contents = state_cache.read(type, digest)
+			psvfile = psv.load(StringIO(contents))
+			click.secho(tabulate(psvfile, headers=psvfile.header), fg="black", bold=True)
+		else:
+			click.secho("(not available)", fg="red")
+		click.echo()
 
 
 @main.command("show")
