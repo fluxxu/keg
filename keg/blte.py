@@ -60,19 +60,20 @@ class BLTEDecoder:
 		self.parse_header()
 
 	def parse_header(self):
-		blte_header_data = self.fp.read(8)
-		blte_header = BytesIO(blte_header_data)
+		self._header_data = self.fp.read(8)
+		blte_header = BytesIO(self._header_data)
 		assert blte_header.read(4) == b"BLTE"
 		header_size, = struct.unpack(">i", blte_header.read(4))
-		# TODO: handle header_size == 0
-		assert self.fp.read(1) == b"\x0f"
-		block_info_data = self.fp.read(header_size - 9)
-		if self.verify:
-			_data_to_verify = blte_header_data + b"\x0f" + block_info_data
-			verify_data("BLTE header", _data_to_verify, self.key, self.verify)
 
-		block_info = BytesIO(block_info_data)
-		self.parse_block_info(block_info)
+		if header_size > 0:
+			assert self.fp.read(1) == b"\x0f"
+			block_info_data = self.fp.read(header_size - 9)
+			if self.verify:
+				_data_to_verify = self._header_data + b"\x0f" + block_info_data
+				verify_data("BLTE header", _data_to_verify, self.key, self.verify)
+
+			block_info = BytesIO(block_info_data)
+			self.parse_block_info(block_info)
 
 	def parse_block_info(self, fp: IO) -> None:
 		num_blocks, = struct.unpack(">i", b"\x00" + fp.read(3))
@@ -97,6 +98,13 @@ class BLTEDecoder:
 				"You should have stored it. "
 				"Now you can't get it back."
 			)
+
+		if not self.block_table:
+			data = self.fp.read()
+			self._block_index += 1
+			verify_data("single-frame BLTE", self._header_data + data, self.key, self.verify)
+			yield data
+			return
 
 		for encoded_size, decoded_size, md5 in self.block_table:
 			data = self.fp.read(encoded_size)
