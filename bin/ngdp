@@ -302,7 +302,7 @@ class App:
 			if not product_key or product_key in decryption_keys:
 				pass
 
-			if not cdn.has_config_item(product_key):
+			if not cdn.local_cdn.has_config_item(product_key):
 				bar.set_description_str(f"Receiving product config: {product_key}")
 				cdn.fetch_config_data(product_key, verify=self.verify)
 
@@ -326,9 +326,9 @@ class App:
 
 		config_to_fetch = set()
 		for version in versions:
-			if not cdn.has_config(version.build_config):
+			if not cdn.local_cdn.has_config(version.build_config):
 				config_to_fetch.add(version.build_config)
-			if not cdn.has_config(version.cdn_config):
+			if not cdn.local_cdn.has_config(version.cdn_config):
 				config_to_fetch.add(version.cdn_config)
 
 		self._download("Fetching config...", config_to_fetch, cdn.fetch_config)
@@ -337,7 +337,7 @@ class App:
 		for version in versions:
 			cdn_config = cdn.get_cdn_config(version.cdn_config, verify=self.verify)
 			for archive_key in cdn_config.archives:
-				if not cdn.has_index(archive_key):
+				if not cdn.local_cdn.has_index(archive_key):
 					indices_to_fetch.add(archive_key)
 
 		self._download("Fetching indices...", indices_to_fetch, cdn.fetch_index)
@@ -355,7 +355,7 @@ class App:
 			# get the archive list
 
 			for archive in cdn_config.archives:
-				if not cdn.has_data(archive):
+				if not cdn.local_cdn.has_data(archive):
 					archives_to_fetch.add(archive)
 
 			# Create the merged archive group
@@ -378,7 +378,7 @@ class App:
 
 				# Download loose files
 				for key in encoding_file.keys:
-					if not archive_group.has_file(key) and not cdn.has_data(key):
+					if not archive_group.has_file(key) and not cdn.local_cdn.has_data(key):
 						loose_files_to_fetch.add(key)
 
 			# Download patch files
@@ -388,7 +388,7 @@ class App:
 				)
 				for patch_entry in patch_config.patch_entries:
 					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-						if not cdn.has_patch(patch_key):
+						if not cdn.local_cdn.has_patch(patch_key):
 							patch_files_to_fetch.add(patch_key)
 
 		self._download(
@@ -458,7 +458,7 @@ def fetch_object(ctx, keys, type):
 		for key in keys:
 			msg = f"Fetching {key}..."
 			bar.set_description(f"Fetching {key}...")
-			if cdn.has_data(key):
+			if cdn.local_cdn.has_data(key):
 				bar.write(f"{msg} Up-to-date.")
 			else:
 				try:

@@ -128,6 +128,21 @@ class LocalCDN(BaseCDN):
 	def config_exists(self, path: str) -> bool:
 		return os.path.exists(self.get_config_path(path))
 
+	def has_config(self, key: str) -> bool:
+		return self.exists(f"/config/{partition_hash(key)}")
+
+	def has_data(self, key: str) -> bool:
+		return self.exists(f"/data/{partition_hash(key)}")
+
+	def has_index(self, key: str) -> bool:
+		return self.exists(f"/data/{partition_hash(key)}.index")
+
+	def has_patch(self, key: str) -> bool:
+		return self.exists(f"/patch/{partition_hash(key)}")
+
+	def has_config_item(self, key: str) -> bool:
+		return self.config_exists(f"/{partition_hash(key)}")
+
 
 class CacheableCDNWrapper(BaseCDN):
 	def __init__(
@@ -157,26 +172,6 @@ class CacheableCDNWrapper(BaseCDN):
 			f.close()
 
 		return self.local_cdn.get_config_item(path)
-
-	def has_config(self, key: str) -> bool:
-		path = f"/config/{partition_hash(key)}"
-		return self.local_cdn.exists(path)
-
-	def has_data(self, key: str) -> bool:
-		path = f"/data/{partition_hash(key)}"
-		return self.local_cdn.exists(path)
-
-	def has_index(self, key: str) -> bool:
-		path = f"/data/{partition_hash(key)}.index"
-		return self.local_cdn.exists(path)
-
-	def has_patch(self, key: str) -> bool:
-		path = f"/patch/{partition_hash(key)}"
-		return self.local_cdn.exists(path)
-
-	def has_config_item(self, key: str) -> bool:
-		path = f"/{partition_hash(key)}"
-		return self.local_cdn.config_exists(path)
 
 
 class HTTPCacheWrapper:
