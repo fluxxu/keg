@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa isort:skip
+import json
 import re
 import sqlite3
 from datetime import datetime
@@ -21,7 +22,7 @@ from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache
-from keg.utils import verify_data
+from keg.utils import partition_hash, verify_data
 
 
 DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
@@ -425,7 +426,6 @@ class App:
 @click.option("--cdn")
 @click.pass_context
 def main(ctx, ngdp_dir, cdn):
-
 	ctx.obj = App(ngdp_dir)
 	ctx.obj.force_cdn = cdn
 
@@ -723,6 +723,47 @@ def fsck(ctx, delete):
 	if fail:
 		tqdm.write(f"{fail} bad objects!")
 		exit(1)
+
+
+@main.command("parse-index")
+@click.argument("key_or_path")
+@click.option("--format", default="table", type=click.Choice(["table", "json"]))
+@click.pass_context
+def parse_index(ctx, key_or_path, format):
+	def get_actual_path(path):
+		if os.path.exists(path):
+			return path
+
+		if looks_like_md5(key_or_path):
+			real_path = os.path.join(
+				ctx.obj.objects_path,
+				"data",
+				partition_hash(key_or_path) + ".index"
+			)
+			if os.path.exists(real_path):
+				return real_path
+
+	real_path = get_actual_path(key_or_path)
+	if not real_path:
+		raise click.ClickException(f"No such file or object: {key_or_path}")
+
+	key = os.path.basename(os.path.splitext(real_path)[0])
+	if not looks_like_md5(key):
+		click.echo(f"WARNING: Invalid key name {repr(key)}", file=sys.stderr)
+
+	with open(real_path, "rb") as f:
+		data = f.read()
+
+	archive_index = ArchiveIndex(data, key, verify=ctx.obj.verify)
+
+	items = list(archive_index.items)
+
+	if format == "table":
+		output = tabulate(items, tablefmt="psql", headers=("Key", "Size", "Offset"))
+	elif format == "json":
+		output = json.dumps(items, indent="\t")
+
+	click.secho(output, fg="black", bold=True)
 
 
 if __name__ == "__main__":
