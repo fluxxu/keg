@@ -134,7 +134,8 @@ class App:
 				remote text,
 				path text,
 				timestamp int64,
-				digest text
+				digest text,
+				source int
 			)
 		""")
 

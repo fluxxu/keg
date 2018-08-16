@@ -1,7 +1,12 @@
+from enum import IntEnum
 from typing import Any, List, Tuple
 
 from . import psv
 from .http import CDNs, HttpBackend, StateCache
+
+
+class Source(IntEnum):
+	HTTP = 1
 
 
 class Keg(HttpBackend):
@@ -36,10 +41,10 @@ class Keg(HttpBackend):
 
 		cursor.execute("""
 			INSERT INTO "responses"
-				(remote, path, timestamp, digest)
+				(remote, path, timestamp, digest, source)
 			VALUES
-				(?, ?, ?, ?)
-		""", (self.remote, path, response.timestamp, response.digest))
+				(?, ?, ?, ?, ?)
+		""", (self.remote, path, response.timestamp, response.digest, Source.HTTP))
 
 		self.cache_db.commit()
 
