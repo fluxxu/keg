@@ -1,5 +1,6 @@
 import csv
 from collections import namedtuple
+from io import StringIO
 from typing import IO, Any, List
 
 
@@ -27,7 +28,11 @@ class PSVFile:
 		self.rows = [self.row_format(*row) for row in reader]
 
 
-def load(fp) -> PSVFile:
+def load(fp: IO) -> PSVFile:
 	ret = PSVFile()
 	ret.read_file(fp)
 	return ret
+
+
+def loads(data: str) -> PSVFile:
+	return load(StringIO(data))
