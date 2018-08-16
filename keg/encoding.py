@@ -3,9 +3,12 @@ from binascii import hexlify
 from io import BytesIO
 from typing import Iterable, List, Tuple
 
+from .utils import verify_data
+
 
 class EncodingFile:
-	def __init__(self, data: bytes) -> None:
+	def __init__(self, data: bytes, key: str, verify: bool=False) -> None:
+		verify_data("encoding file", data, key, verify)
 		self.parse_header(data)
 
 	def parse_header(self, data: bytes) -> None:

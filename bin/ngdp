@@ -381,11 +381,12 @@ class App:
 			build_config = cdn.get_build_config(
 				version.build_config, verify=self.verify
 			)
-			content_key, encoding_key = build_config.encodings  # TODO verify content_key
+			content_key, encoding_key = build_config.encodings
 
 			if encoding_key:
 				encoding_file = EncodingFile(
-					cdn.download_blte_data(encoding_key, verify=self.verify)
+					cdn.download_blte_data(encoding_key, verify=self.verify),
+					content_key, verify=self.verify
 				)
 
 				# Download loose files
