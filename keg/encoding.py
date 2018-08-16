@@ -1,7 +1,7 @@
 import struct
 from binascii import hexlify
 from io import BytesIO
-from typing import Iterable, List, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 from . import blte
 from .utils import verify_data
@@ -11,6 +11,8 @@ class EncodingFile:
 	def __init__(
 		self, data: bytes, content_key: str, encoded_key: str, verify: bool=False
 	) -> None:
+		self._encoding_keys: List[str] = []
+		self._content_keys: Dict[str, List[str]] = {}
 		decoded_data = blte.loads(data, encoded_key, verify=verify)
 		verify_data("encoding file", decoded_data, content_key, verify)
 		self.parse_header(decoded_data)
@@ -55,6 +57,10 @@ class EncodingFile:
 
 	@property
 	def encoding_keys(self) -> Iterable[str]:
+		if self._encoding_keys:
+			yield from self._encoding_keys
+			return
+
 		self.encoding_page_table.seek(0)
 		page_size = 1024 * self.encoding_page_table_page_size
 		for i in range(self.encoding_page_table_page_count):
@@ -66,11 +72,17 @@ class EncodingFile:
 				])
 				if espec_index == -1:
 					break
-				yield hexlify(page[ofs:ofs + self.encoding_hash_size]).decode()
+				key = hexlify(page[ofs:ofs + self.encoding_hash_size]).decode()
+				self._encoding_keys.append(key)
+				yield key
 				ofs += self.encoding_hash_size + 9
 
 	@property
 	def content_keys(self) -> Iterable[Tuple[str, List[str]]]:
+		if self._content_keys:
+			yield from self._content_keys.items()
+			return
+
 		self.content_page_table.seek(0)
 		page_size = 1024 * self.content_page_table_page_size
 		for i in range(self.content_page_table_page_count):
@@ -92,7 +104,13 @@ class EncodingFile:
 					keys.append(hexlify(page[ofs:ofs + self.encoding_hash_size]).decode())
 					ofs += self.encoding_hash_size
 
+				self._content_keys[content_key] = keys
 				yield content_key, keys
 
-	def find_by_content_key(self, key) -> str:
-		return dict(self.content_keys)[key][0]
+	def find_by_content_key(self, key: str) -> str:
+		if not self._content_keys:
+			# Fill content key cache by iterating without doing anything
+			for obj in self.content_keys:
+				pass
+			assert self._content_keys
+		return self._content_keys[key][0]
