@@ -593,11 +593,11 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 		click.secho(table, fg="black", bold=True)
 		return
 
-	entries = list(install_file.filter_entries(tags))
+	entries = sorted(install_file.filter_entries(tags))
 
 	if dryrun:
 		table = tabulate(
-			sorted(entries), tablefmt="psql", headers=["Filename", "Digest", "Size"]
+			entries, tablefmt="psql", headers=["Filename", "Digest", "Size"]
 		)
 		click.secho(table, fg="black", bold=True)
 
@@ -625,8 +625,17 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 	if dryrun:
 		return
 
+	prev_filename, prev_key = "", ""
 	bar = tqdm(unit="file", ncols=0, leave=False, total=len(entries))
 	for filename, key, size in entries:
+		bar.update()
+		if filename == prev_filename:
+			# Skips over potential conflicts
+			if key != prev_key:
+				tqdm.write(f"WARNING: Unresolved conflict for {filename}", sys.stderr)
+			continue
+
+		prev_filename, prev_key = filename, key
 		file_path = os.path.join(install_dir, filename)
 
 		if os.path.exists(file_path):
@@ -637,7 +646,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 		try:
 			encoding_key = encoding_file.find_by_content_key(key)
 		except KeyError:
-			tqdm.write(f"WARNING: Cannot find {key} ({filename}). Skipping.")
+			tqdm.write(f"WARNING: Cannot find {key} ({filename}). Skipping.", sys.stderr)
 			continue
 
 		tqdm.write(file_path)
@@ -660,8 +669,6 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 				f"Cannot install {file_path}: Missing data for {encoding_key}. "
 				"Try running `ngdp fetch {remote}`."
 			)
-
-		bar.update()
 
 	bar.close()
 
