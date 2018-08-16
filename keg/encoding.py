@@ -1,7 +1,7 @@
 import struct
 from binascii import hexlify
 from io import BytesIO
-from typing import Iterable
+from typing import Iterable, List, Tuple
 
 
 class EncodingFile:
@@ -61,3 +61,31 @@ class EncodingFile:
 					break
 				yield hexlify(page[ofs:ofs + self.encoding_hash_size]).decode()
 				ofs += self.encoding_hash_size + 9
+
+	@property
+	def content_keys(self) -> Iterable[Tuple[str, List[str]]]:
+		self.content_page_table.seek(0)
+		page_size = 1024 * self.content_page_table_page_size
+		for i in range(self.content_page_table_page_count):
+			ofs = 0
+			page = self.content_page_table.read(page_size)
+
+			while ofs + 6 + self.content_hash_size + self.encoding_hash_size <= page_size:
+				key_count, file_size_hi, file_size = struct.unpack(">BBI", page[
+					ofs:ofs + 6
+				])
+				ofs += 6
+				file_size |= file_size_hi << 32
+				content_key = hexlify(page[ofs:ofs + self.content_hash_size]).decode()
+				if not key_count:
+					break
+				ofs += self.content_hash_size
+				keys = []
+				for i in range(key_count):
+					keys.append(hexlify(page[ofs:ofs + self.encoding_hash_size]).decode())
+					ofs += self.encoding_hash_size
+
+				yield content_key, keys
+
+	def find_by_content_key(self, key) -> str:
+		return dict(self.content_keys)[key][0]
