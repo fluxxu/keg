@@ -16,9 +16,8 @@ from humanize import naturalsize
 from tabulate import tabulate
 from tqdm import tqdm
 
-from keg import Keg, psv
+from keg import Keg, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
-from keg.blte import verify_blte_data
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache
@@ -611,19 +610,56 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 	install_dir = os.path.abspath(outdir)
 	click.echo(f"Installation directory: {install_dir}")
 
+	encoding_file = build_config.get_encoding_file(cdn)
+	if not encoding_file:
+		raise click.ClickException("No encoding file found. Cannot proceed.")
+
+	cdn_config = cdn.get_cdn_config(cdn_config_key, verify=ctx.obj.verify)
+	archive_group = ArchiveGroup(
+		cdn_config.archives,
+		cdn_config.archive_group,
+		cdn,
+		verify=ctx.obj.verify
+	)
+
 	if dryrun:
 		return
 
-	bar = tqdm(unit="file", ncols=0, leave=True, total=len(entries))
+	bar = tqdm(unit="file", ncols=0, leave=False, total=len(entries))
 	for filename, key, size in entries:
-		bar.set_description(f"Installing {filename} ({naturalsize(size)})")
 		file_path = os.path.join(install_dir, filename)
+
+		if os.path.exists(file_path):
+			raise click.ClickException(f"{file_path} already exists. Not overwriting.")
+
+		bar.set_description(f"Installing {filename} ({naturalsize(size)})")
+
+		try:
+			encoding_key = encoding_file.find_by_content_key(key)
+		except KeyError:
+			tqdm.write(f"WARNING: Cannot find {key} ({filename}). Skipping.")
+			continue
+
+		tqdm.write(file_path)
+
 		dirname = os.path.dirname(file_path)
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
 
-		with open(file_path, "wb") as f:
-			f.write(b"\0" * size)
+		if cdn.local_cdn.has_data(encoding_key):
+			with cdn.download_data(encoding_key, verify=ctx.obj.verify) as encoded_file:
+				decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=ctx.obj.verify)
+				with open(file_path, "wb") as f:
+					decoder.decode_and_write(f)
+		elif archive_group.has_file(encoding_key):
+			data = archive_group.get_file_by_key(encoding_key)
+			with open(file_path, "wb") as f:
+				f.write(data)
+		else:
+			raise click.ClickException(
+				f"Cannot install {file_path}: Missing data for {encoding_key}. "
+				"Try running `ngdp fetch {remote}`."
+			)
 
 		bar.update()
 
@@ -757,10 +793,10 @@ def fsck(ctx, delete):
 							index = ArchiveIndex(index_file.read(), key, verify=False)
 							for item_key, item_size, item_offset in index.items:
 								f.seek(item_offset)
-								verify_blte_data(BytesIO(f.read(item_size)), item_key)
+								blte.verify_blte_data(BytesIO(f.read(item_size)), item_key)
 
 					else:
-						verify_blte_data(f, key)
+						blte.verify_blte_data(f, key)
 				else:
 					verify_data("object on disk", f.read(), key, verify=True)
 			except IntegrityVerificationError as e:
