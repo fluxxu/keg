@@ -169,7 +169,7 @@ class App:
 					key text,
 					row int,
 					BuildConfig text,
-					BuildID text,
+					BuildID int,
 					CDNConfig text,
 					KeyRing text,
 					ProductConfig text,
