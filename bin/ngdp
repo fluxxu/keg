@@ -483,6 +483,24 @@ def fetch_object(ctx, keys, type):
 		raise NotImplementedError()
 
 
+@main.command("add")
+@click.argument("paths", nargs=-1, required=True)
+@click.option("--type", required=True, type=click.Choice(["config"]))
+@click.pass_context
+def add_object(ctx, paths, type):
+	for path in paths:
+		key = os.path.basename(path)
+		with open(path, "rb") as f:
+			data = f.read()
+		verify_data("config file", data, key, verify=ctx.obj.verify)
+		ngdp_path = os.path.join(ctx.obj.objects_path, "config", partition_hash(key))
+		dirname = os.path.dirname(ngdp_path)
+		if not os.path.exists(dirname):
+			os.makedirs(dirname)
+		click.echo(f"{path} => {ngdp_path}")
+		os.rename(path, ngdp_path)
+
+
 @main.group()
 @click.pass_context
 def remote(ctx):
