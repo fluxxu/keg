@@ -111,3 +111,13 @@ class BLTEDecoder:
 			verify_data("BLTE block", data, md5, self.verify)
 			self._block_index += 1
 			yield data
+
+
+def load(fp: IO, key: str, verify: bool=False):
+	decoder = BLTEDecoder(fp, key, verify=verify)
+	return b"".join(decoder.blocks)
+
+
+def loads(data: bytes, key: str, verify: bool=False):
+	fp = BytesIO(data)
+	return load(fp, key, verify=verify)
