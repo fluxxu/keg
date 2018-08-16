@@ -1,5 +1,6 @@
 import hashlib
 import os
+from typing import IO
 
 from .exceptions import IntegrityVerificationError
 
@@ -25,3 +26,15 @@ def verify_data(object_name: str, data: bytes, key: str, verify: bool) -> bool:
 			raise IntegrityVerificationError(object_name, digest, key)
 
 	return True
+
+
+def read_cstr(fp: IO) -> str:
+	ret = []
+
+	while True:
+		c = fp.read(1)
+		if not c or c == b"\0":
+			break
+		ret.append(c)
+
+	return b"".join(ret).decode()

@@ -21,6 +21,7 @@ from keg.blte import verify_blte_data
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache
+from keg.installfile import InstallFile
 from keg.utils import partition_hash, verify_data
 
 
@@ -570,7 +571,21 @@ def checkout(ctx, remote, version):
 	else:
 		key = version.lower()
 
-	print(f"Checking out {key}...")
+	click.echo(f"Checking out {key}...")
+
+	keg = ctx.obj.get_remote(remote)
+	cdn = ctx.obj._choose_cdn(keg.get_cdns())
+
+	build_config = cdn.get_build_config(key, verify=ctx.obj.verify)
+
+	install_file = build_config.get_install_file(cdn)
+	if not install_file:
+		raise click.ClickException("Install file not found")
+
+	table = tabulate(
+		sorted(install_file.entries), tablefmt="psql", headers=["Filename", "Digest", "Size"]
+	)
+	click.secho(table, fg="black", bold=True)
 
 
 @main.command("log")
