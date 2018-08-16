@@ -387,7 +387,7 @@ class App:
 				)
 
 				# Download loose files
-				for key in encoding_file.keys:
+				for key in encoding_file.encoding_keys:
 					if not archive_group.has_file(key) and not cdn.local_cdn.has_data(key):
 						loose_files_to_fetch.add(key)
 

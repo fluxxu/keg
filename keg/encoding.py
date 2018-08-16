@@ -47,7 +47,7 @@ class EncodingFile:
 		))
 
 	@property
-	def keys(self) -> Iterable[str]:
+	def encoding_keys(self) -> Iterable[str]:
 		self.encoding_page_table.seek(0)
 		page_size = 1024 * self.encoding_page_table_page_size
 		for i in range(self.encoding_page_table_page_count):
