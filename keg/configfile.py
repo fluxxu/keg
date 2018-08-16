@@ -49,7 +49,9 @@ class BuildConfig(BaseConfig):
 
 		install_file_ekey = encoding_file.find_by_content_key(self.install)
 		with cdn.download_data(install_file_ekey, verify=verify) as fp:
-			return InstallFile(fp, self.install, install_file_ekey, verify=verify)
+			return InstallFile.from_blte_file(
+				fp, self.install, install_file_ekey, verify=verify
+			)
 
 
 class CDNConfig(BaseConfig):

@@ -9,13 +9,17 @@ from .utils import read_cstr, verify_data
 
 
 class InstallFile:
-	def __init__(self, fp: IO, key: str, encoded_key: str, verify: bool=False) -> None:
+	def __init__(self, contents: bytes, key: str, verify: bool=False) -> None:
 		self.key = key
-		data = blte.load(fp, encoded_key, verify=verify)
-		verify_data("install file", data, key, verify)
+		verify_data("install file", contents, key, verify)
 		self.tags: Dict[str, Tuple[int, bytes]] = {}
 		self.entries: List[Tuple[str, str, int]] = []
-		self.parse_bytes(data)
+		self.parse_bytes(contents)
+
+	@classmethod
+	def from_blte_file(self, fp: IO, key: str, encoded_key: str, verify: bool=False):
+		contents = blte.load(fp, encoded_key, verify=verify)
+		return InstallFile(contents, key, verify=verify)
 
 	def parse_bytes(self, data: bytes):
 		contents = BytesIO(data)
