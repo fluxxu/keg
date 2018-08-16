@@ -313,7 +313,7 @@ class App:
 		for version in versions:
 			product_key = version.product_config
 			if not product_key or product_key in decryption_keys:
-				pass
+				continue
 
 			if not cdn.local_cdn.has_config_item(product_key):
 				bar.set_description_str(f"Receiving product config: {product_key}")
