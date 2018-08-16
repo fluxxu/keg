@@ -7,7 +7,7 @@ from datetime import datetime
 from glob import iglob
 from io import BytesIO, StringIO
 from itertools import chain
-from typing import List, Set
+from typing import List, Set, Tuple
 from urllib.parse import urlparse
 
 import click
@@ -228,19 +228,21 @@ class App:
 			) + remote
 		return remote
 
-	def find_version(self, version: str, remote: str) -> str:
+	def find_version(self, version: str, remote: str) -> Tuple[str, str]:
 		cursor = self.db.cursor()
 		cursor.execute("""
-			SELECT distinct(BuildConfig)
+			SELECT distinct(BuildConfig), CDNConfig
 			FROM versions
 			WHERE
 				REMOTE = ? AND
-				VersionsName = ? OR BuildID = ?
+				VersionsName = ? OR BuildID = ? OR BuildConfig = ?
 			GROUP BY BuildConfig
-		""", (remote, version, version))
+		""", (remote, version, version, version))
 		results = cursor.fetchall()
-		if len(results) == 1:
-			return results[0][0]
+		if not results:
+			raise click.ClickException(f"Version not found: {version}")
+		elif len(results) == 1:
+			return results[0]
 		else:
 			raise AmbiguousVersionError(
 				f"Version {repr(version)} is ambiguous",
@@ -568,19 +570,15 @@ def inspect(ctx, remote):
 def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 	remote = ctx.obj._clean_remote(remote)
 
-	if not looks_like_md5(version.lower()):
-		key = ctx.obj.find_version(version, remote)
-		if not key:
-			raise click.ClickException(f"Version not found: {version}")
-	else:
-		key = version.lower()
+	# version can be a BuildName, BuildID or BuildConfig
+	build_config_key, cdn_config_key = ctx.obj.find_version(version, remote)
 
-	click.echo(f"Checking out {key}...")
+	click.echo(f"Checking out {build_config_key}...")
 
 	keg = ctx.obj.get_remote(remote)
 	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.response_cache_dir))
 
-	build_config = cdn.get_build_config(key, verify=ctx.obj.verify)
+	build_config = cdn.get_build_config(build_config_key, verify=ctx.obj.verify)
 
 	install_file = build_config.get_install_file(cdn)
 	if not install_file:
