@@ -16,3 +16,8 @@ def test_install_file():
 	assert install_file.entries[0] == (
 		"msvcp140.dll", "b9abe16b723ddd90fc612d0ddb0f7ab4", 633144
 	)
+
+	assert len(list(install_file.filter_entries(
+		["Windows", "enUS", "Production"]
+	))) == 183
+	assert len(list(install_file.filter_entries(["Windows", "OSX"]))) == 0

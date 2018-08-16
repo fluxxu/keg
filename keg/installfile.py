@@ -4,6 +4,8 @@ from io import BytesIO
 from math import ceil
 from typing import IO, Dict, Iterable, List, Tuple
 
+from bitarray import bitarray
+
 from . import blte
 from .utils import read_cstr, verify_data
 
@@ -51,10 +53,9 @@ class InstallFile:
 		for tag in tags:
 			if tag not in self.tags:
 				raise TagError(tag)
-			flags = self.tags[tag][1]
-			tag_arrays.append(
-				[flags[i // 8] & 1 << i % 8 != 0 for i in range(len(flags) * 8)]
-			)
+			barr = bitarray()
+			barr.frombytes(self.tags[tag][1])
+			tag_arrays.append(barr)
 
 		for i, entry in enumerate(self.entries):
 			if all(array[i] for array in tag_arrays):
