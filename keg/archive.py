@@ -142,3 +142,9 @@ class ArchiveGroup:
 
 	def get_file(self, key: str, size: int, archive_id: int, offset: int) -> bytes:
 		return self.archives[archive_id].get_file(key, size, offset)
+
+	def get_file_by_key(self, key: str) -> bytes:
+		for item_key, size, archive_id, offset in self.merged_index.items:
+			if item_key == key:
+				return self.get_file(key, size, archive_id, offset)
+		raise KeyError(key)
