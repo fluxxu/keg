@@ -235,6 +235,7 @@ class App:
 			FROM versions
 			WHERE
 				VersionsName = ? OR BuildID = ?
+			GROUP BY BuildConfig
 		""", (version, version))
 		results = cursor.fetchall()
 		if len(results) == 1:
