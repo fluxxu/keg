@@ -112,6 +112,15 @@ class BLTEDecoder:
 			self._block_index += 1
 			yield data
 
+	def decode_and_write(self, fp: IO) -> int:
+		"""
+		Writes the decoded content of the BLTE file to the given file-like object.
+		"""
+		ret = 0
+		for block in self.blocks:
+			ret += fp.write(block)
+		return ret
+
 
 def load(fp: IO, key: str, verify: bool=False):
 	decoder = BLTEDecoder(fp, key, verify=verify)
