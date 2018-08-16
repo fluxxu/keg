@@ -247,7 +247,7 @@ class App:
 				sorted(set(chain(*results)))
 			)
 
-	def get_remote(self, remote: str):
+	def get_remote(self, remote: str) -> Keg:
 		return Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
 
 	def fetch(self, remote: str, metadata_only: bool=False):
@@ -574,7 +574,7 @@ def checkout(ctx, remote, version):
 	click.echo(f"Checking out {key}...")
 
 	keg = ctx.obj.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(keg.get_cdns())
+	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.response_cache_dir))
 
 	build_config = cdn.get_build_config(key, verify=ctx.obj.verify)
 
