@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 
 import requests
 
-from . import blizini, blte
+from . import blizini
 from .archive import ArchiveIndex
 from .configfile import BuildConfig, CDNConfig, PatchConfig
 from .exceptions import NetworkError
@@ -63,10 +63,6 @@ class BaseCDN:
 
 	def get_index(self, key: str, verify: bool=False) -> ArchiveIndex:
 		return ArchiveIndex(self.fetch_index(key), key, verify=verify)
-
-	def download_blte_data(self, key: str, verify: bool=False) -> bytes:
-		with self.get_item(f"/data/{partition_hash(key)}") as resp:
-			return blte.load(resp, key, verify=verify)
 
 	def download_data(self, key: str, verify: bool=False) -> IO:
 		return self.get_item(f"/data/{partition_hash(key)}")

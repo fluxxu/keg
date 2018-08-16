@@ -3,13 +3,17 @@ from binascii import hexlify
 from io import BytesIO
 from typing import Iterable, List, Tuple
 
+from . import blte
 from .utils import verify_data
 
 
 class EncodingFile:
-	def __init__(self, data: bytes, key: str, verify: bool=False) -> None:
-		verify_data("encoding file", data, key, verify)
-		self.parse_header(data)
+	def __init__(
+		self, data: bytes, content_key: str, encoded_key: str, verify: bool=False
+	) -> None:
+		decoded_data = blte.loads(data, encoded_key, verify=verify)
+		verify_data("encoding file", decoded_data, content_key, verify)
+		self.parse_header(decoded_data)
 
 	def parse_header(self, data: bytes) -> None:
 		header_size = 22

@@ -19,7 +19,6 @@ from keg import Keg, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.blte import verify_blte_data
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
-from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache
 from keg.utils import partition_hash, verify_data
@@ -381,14 +380,9 @@ class App:
 			build_config = cdn.get_build_config(
 				version.build_config, verify=self.verify
 			)
-			content_key, encoding_key = build_config.encodings
 
-			if encoding_key:
-				encoding_file = EncodingFile(
-					cdn.download_blte_data(encoding_key, verify=self.verify),
-					content_key, verify=self.verify
-				)
-
+			encoding_file = build_config.get_encoding_file(cdn, verify=self.verify)
+			if encoding_file:
 				# Download loose files
 				for key in encoding_file.encoding_keys:
 					if not archive_group.has_file(key) and not cdn.local_cdn.has_data(key):

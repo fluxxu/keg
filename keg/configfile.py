@@ -1,5 +1,6 @@
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Union
 
+from .encoding import EncodingFile
 from .patch import PatchEntry
 
 
@@ -28,6 +29,14 @@ class BuildConfig(BaseConfig):
 		elif len(ret) == 1:
 			return ret[0], ""
 		return ret[0], ret[1]
+
+	def get_encoding_file(self, cdn, verify: bool=False) -> Union[EncodingFile, None]:
+		ckey, ekey = self.encodings
+		if not ekey:
+			return None
+
+		data = cdn.download_data(ekey, verify=verify).read()
+		return EncodingFile(data, ckey, ekey, verify=verify)
 
 
 class CDNConfig(BaseConfig):
