@@ -228,15 +228,16 @@ class App:
 			) + remote
 		return remote
 
-	def find_version(self, version: str) -> str:
+	def find_version(self, version: str, remote: str) -> str:
 		cursor = self.db.cursor()
 		cursor.execute("""
 			SELECT distinct(BuildConfig)
 			FROM versions
 			WHERE
+				REMOTE = ? AND
 				VersionsName = ? OR BuildID = ?
 			GROUP BY BuildConfig
-		""", (version, version))
+		""", (remote, version, version))
 		results = cursor.fetchall()
 		if len(results) == 1:
 			return results[0][0]
@@ -561,11 +562,14 @@ def inspect(ctx, remote):
 
 
 @main.command()
+@click.argument("remote")
 @click.argument("version")
 @click.pass_context
-def checkout(ctx, version):
+def checkout(ctx, remote, version):
+	remote = ctx.obj._clean_remote(remote)
+
 	if not looks_like_md5(version.lower()):
-		key = ctx.obj.find_version(version)
+		key = ctx.obj.find_version(version, remote)
 		if not key:
 			raise click.ClickException(f"Version not found: {version}")
 	else:
