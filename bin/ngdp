@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 import click
 import toml
+from humanize import naturalsize
 from tabulate import tabulate
 from tqdm import tqdm
 
@@ -21,7 +22,6 @@ from keg.blte import verify_blte_data
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache
-from keg.installfile import InstallFile
 from keg.utils import partition_hash, verify_data
 
 
@@ -560,8 +560,10 @@ def inspect(ctx, remote):
 @main.command()
 @click.argument("remote")
 @click.argument("version")
+@click.option("--show-tags", is_flag=True)
+@click.option("--tags", multiple=True)
 @click.pass_context
-def install(ctx, remote, version):
+def install(ctx, remote, version, tags, show_tags):
 	remote = ctx.obj._clean_remote(remote)
 
 	if not looks_like_md5(version.lower()):
@@ -582,10 +584,28 @@ def install(ctx, remote, version):
 	if not install_file:
 		raise click.ClickException("Install file not found")
 
+	if show_tags:
+		click.echo("Valid tags:\n")
+		table = tabulate(
+			[(k, v[0]) for k, v in install_file.tags.items()],
+			tablefmt="psql",
+			headers=["Tag", "Type"]
+		)
+		click.secho(table, fg="black", bold=True)
+		return
+
+	entries = list(install_file.filter_entries(tags))
+
 	table = tabulate(
-		sorted(install_file.entries), tablefmt="psql", headers=["Filename", "Digest", "Size"]
+		sorted(entries), tablefmt="psql", headers=["Filename", "Digest", "Size"]
 	)
 	click.secho(table, fg="black", bold=True)
+
+	total_size = sum(k[2] for k in entries)
+	click.echo(f"Would use {naturalsize(total_size, binary=True)}")
+
+	num_conflicts = len(entries) - len(set(k[0] for k in entries))
+	click.echo(f"{num_conflicts} conflicting files")
 
 
 @main.command("log")
