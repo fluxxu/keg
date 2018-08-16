@@ -560,10 +560,12 @@ def inspect(ctx, remote):
 @main.command()
 @click.argument("remote")
 @click.argument("version")
+@click.argument("outdir", default=".")
 @click.option("--show-tags", is_flag=True)
 @click.option("--tags", multiple=True)
+@click.option("--dry-run", "--dryrun", is_flag=True)
 @click.pass_context
-def install(ctx, remote, version, tags, show_tags):
+def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 	remote = ctx.obj._clean_remote(remote)
 
 	if not looks_like_md5(version.lower()):
@@ -596,16 +598,38 @@ def install(ctx, remote, version, tags, show_tags):
 
 	entries = list(install_file.filter_entries(tags))
 
-	table = tabulate(
-		sorted(entries), tablefmt="psql", headers=["Filename", "Digest", "Size"]
-	)
-	click.secho(table, fg="black", bold=True)
+	if dryrun:
+		table = tabulate(
+			sorted(entries), tablefmt="psql", headers=["Filename", "Digest", "Size"]
+		)
+		click.secho(table, fg="black", bold=True)
 
 	total_size = sum(k[2] for k in entries)
-	click.echo(f"Would use {naturalsize(total_size, binary=True)}")
+	click.echo(f"Total size: {naturalsize(total_size, binary=True)}")
 
 	num_conflicts = len(entries) - len(set(k[0] for k in entries))
 	click.echo(f"{num_conflicts} conflicting files")
+
+	install_dir = os.path.abspath(outdir)
+	click.echo(f"Installation directory: {install_dir}")
+
+	if dryrun:
+		return
+
+	bar = tqdm(unit="file", ncols=0, leave=True, total=len(entries))
+	for filename, key, size in entries:
+		bar.set_description(f"Installing {filename} ({naturalsize(size)})")
+		file_path = os.path.join(install_dir, filename)
+		dirname = os.path.dirname(file_path)
+		if not os.path.exists(dirname):
+			os.makedirs(dirname)
+
+		with open(file_path, "wb") as f:
+			f.write(b"\0" * size)
+
+		bar.update()
+
+	bar.close()
 
 
 @main.command("log")
