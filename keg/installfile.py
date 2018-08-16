@@ -2,10 +2,14 @@ import struct
 from binascii import hexlify
 from io import BytesIO
 from math import ceil
-from typing import IO, Dict, List, Tuple
+from typing import IO, Dict, Iterable, List, Tuple
 
 from . import blte
 from .utils import read_cstr, verify_data
+
+
+class TagError(KeyError):
+	pass
 
 
 class InstallFile:
@@ -41,3 +45,17 @@ class InstallFile:
 			digest = hexlify(contents.read(hash_size)).decode()
 			size, = struct.unpack(">I", contents.read(4))
 			self.entries.append((file_name, digest, size))
+
+	def filter_entries(self, tags: List[str]) -> Iterable[Tuple[str, str, int]]:
+		tag_arrays = []
+		for tag in tags:
+			if tag not in self.tags:
+				raise TagError(tag)
+			flags = self.tags[tag][1]
+			tag_arrays.append(
+				[flags[i // 8] & 1 << i % 8 != 0 for i in range(len(flags) * 8)]
+			)
+
+		for i, entry in enumerate(self.entries):
+			if all(array[i] for array in tag_arrays):
+				yield entry
