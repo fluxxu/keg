@@ -561,7 +561,7 @@ def inspect(ctx, remote):
 @click.argument("remote")
 @click.argument("version")
 @click.pass_context
-def checkout(ctx, remote, version):
+def install(ctx, remote, version):
 	remote = ctx.obj._clean_remote(remote)
 
 	if not looks_like_md5(version.lower()):
