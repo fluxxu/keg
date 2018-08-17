@@ -54,11 +54,11 @@ class CDNs(PSVResponse):
 class Versions(PSVResponse):
 	def __init__(self, row: psv.PSVRow) -> None:
 		super().__init__(row)
-		self.build_config = row.BuildConfig
+		self.build_config = row.BuildConfig.lower()
 		self.build_id = row.BuildId
-		self.cdn_config = row.CDNConfig
+		self.cdn_config = row.CDNConfig.lower()
 		self.keyring = getattr(row, "KeyRing", "")
-		self.product_config = getattr(row, "ProductConfig", "")
+		self.product_config = getattr(row, "ProductConfig", "").lower()
 		self.region = row.Region
 		self.versions_name = row.VersionsName
 
