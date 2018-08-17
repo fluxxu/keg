@@ -498,7 +498,7 @@ def fetch_object(ctx, keys, type):
 
 @main.command("add")
 @click.argument("paths", nargs=-1, required=True)
-@click.option("--type", required=True, type=click.Choice(["config", "versions"]))
+@click.option("--type", required=True, type=click.Choice(["config", "cdns", "versions"]))
 @click.option("--remote")
 @click.pass_context
 def add_object(ctx, paths, type, remote):
@@ -522,24 +522,27 @@ def add_object(ctx, paths, type, remote):
 			ngdp_path = os.path.join(ctx.obj.objects_path, "config", partition_hash(key))
 			_ingest_move(path, ngdp_path)
 
-		elif type == "versions":
-			verify_data("versions response", data, key, verify=ctx.obj.verify)
+		elif type in ("cdns", "versions"):
+			verify_data(f"{type} response", data, key, verify=ctx.obj.verify)
 			if not remote:
 				raise click.BadParameter(remote, param_hint="--remote")
 
 			# Sanity check
-			assert data.startswith(b"Region!STRING:0|")
+			if type == "cdns":
+				assert data.startswith(b"Name!STRING:0|")
+			elif type == "versions":
+				assert data.startswith(b"Region!STRING:0|")
 
 			remote = ctx.obj._clean_remote(remote)
 			keg = ctx.obj.get_remote(remote)
 
 			cursor = ctx.obj.db.cursor()
 			psvfile = psv.loads(data.decode())
-			keg.cache_psv(psvfile, key, "/versions", cursor)
+			keg.cache_psv(psvfile, key, f"/{type}", cursor)
 			ctx.obj.db.commit()
 
 			ngdp_path = os.path.join(
-				ctx.obj.response_cache_dir, "versions", partition_hash(key)
+				ctx.obj.response_cache_dir, type, partition_hash(key)
 			)
 			_ingest_move(path, ngdp_path)
 
