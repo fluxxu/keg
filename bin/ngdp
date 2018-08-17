@@ -89,7 +89,10 @@ class App:
 
 		for key in iterable:
 			bar.set_description(message + " " + key)
-			callback(key, verify=self.verify)
+			try:
+				callback(key, verify=self.verify)
+			except NetworkError as e:
+				tqdm.write(f"WARNING: {str(e)}", sys.stderr)
 			bar.update()
 		bar.close()
 
