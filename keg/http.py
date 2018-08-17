@@ -57,8 +57,8 @@ class Versions(PSVResponse):
 		self.build_config = row.BuildConfig
 		self.build_id = row.BuildId
 		self.cdn_config = row.CDNConfig
-		self.keyring = row.KeyRing
-		self.product_config = row.ProductConfig
+		self.keyring = getattr(row, "KeyRing", "")
+		self.product_config = getattr(row, "ProductConfig", "")
 		self.region = row.Region
 		self.versions_name = row.VersionsName
 
