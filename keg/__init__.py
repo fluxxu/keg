@@ -20,31 +20,36 @@ class Keg(HttpBackend):
 		response.write_to_cache(self.cache_dir)
 		return ret, response
 
-	def get_psv(self, path: str):
-		psvfile, response = super().get_psv(path)
-		response.write_to_cache(self.cache_dir)
-
+	def cache_psv(self, psvfile, key: str, path: str, cursor) -> None:
 		table_name = path.strip("/")
-		cursor = self.cache_db.cursor()
 		cursor.execute("""
 			DELETE FROM "%s" where remote = ? and key = ?
-		""" % (table_name), (self.remote, response.digest, ))
+		""" % (table_name), (self.remote, key, ))
 
 		insert_tpl = 'INSERT INTO "%s" (remote, key, row, %s) values (?, ?, ?, %s)' % (
 			table_name,
 			", ".join(psvfile.header),
-			", ".join(["?"] * (len(psvfile.header)))
+			", ".join(["?"] * len(psvfile.header))
 		)
-		cursor.executemany(insert_tpl, [
-			[self.remote, response.digest, i, *row] for i, row in enumerate(psvfile)
-		])
+		rows = [[self.remote, key, i, *row] for i, row in enumerate(psvfile)]
+		cursor.executemany(insert_tpl, rows)
 
+	def cache_response(self, response, path: str, cursor) -> None:
 		cursor.execute("""
 			INSERT INTO "responses"
 				(remote, path, timestamp, digest, source)
 			VALUES
 				(?, ?, ?, ?, ?)
 		""", (self.remote, path, response.timestamp, response.digest, Source.HTTP))
+
+	def get_psv(self, path: str):
+		psvfile, response = super().get_psv(path)
+		response.write_to_cache(self.cache_dir)
+
+		cursor = self.cache_db.cursor()
+
+		self.cache_psv(psvfile, response.digest, path, cursor)
+		self.cache_response(response, path, cursor)
 
 		self.cache_db.commit()
 
