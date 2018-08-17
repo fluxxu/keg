@@ -252,25 +252,7 @@ class App:
 	def get_remote(self, remote: str) -> Keg:
 		return Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
 
-	def fetch(self, remote: str, metadata_only: bool=False):
-		remote = self._clean_remote(remote)
-		click.echo(f"Fetching {remote}")
-
-		keg = self.get_remote(remote)
-
-		# keg fetch
-		# 1. get the version
-		# 2. get the cdns
-		# 3. pick a cdn..? / keep the other ones as fallback
-		# 4. pull the build config
-		# 5. pull the cdn config
-		# 6. pull the patch config
-		# # 7. pull the product config (?)
-		# 8. pull encoding file (which we got from build_config), if not resolved yet
-		# 9. download all the archive indices
-		# 10. do stuff for patch files
-		# Finally... resolve all dangling data references
-
+	def fetch_stateful_data(self, keg: Keg):
 		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
 
 		# Look up all available CDNs and choose one to use
@@ -334,10 +316,9 @@ class App:
 
 		bar.close()
 
-		if decryption_keys:
-			click.echo("This repository is encrypted. Key not available. Aborting fetch.")
-			return
+		return cdn, versions, decryption_keys
 
+	def fetch(self, cdn, versions, metadata_only: bool=False):
 		config_to_fetch = set()
 		for version in versions:
 			if not cdn.local_cdn.has_config(version.build_config):
@@ -441,8 +422,16 @@ def init(ctx):
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def fetch(ctx, remote, metadata_only=True):
+	remote = ctx.obj._clean_remote(remote)
+	click.echo(f"Fetching {remote}")
+	keg = ctx.obj.get_remote(remote)
+	cdn, versions, decryption_keys = ctx.obj.fetch_stateful_data(keg)
+	if decryption_keys:
+		click.echo("This repository is encrypted. Key not available. Aborting fetch.")
+		return
+
 	try:
-		ctx.obj.fetch(remote, metadata_only)
+		ctx.obj.fetch(cdn, versions, metadata_only)
 	except IntegrityVerificationError as e:
 		raise click.ClickException(str(e))
 
