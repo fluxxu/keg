@@ -86,6 +86,10 @@ class StateCache:
 		with open(self.get_full_path(name, key), "r") as f:
 			return f.read()
 
+	def read_psv(self, name: str, key: str) -> psv.PSVFile:
+		data = self.read(name, key)
+		return psv.loads(data)
+
 	def write(self, name: str, key: str, content: bytes) -> int:
 		path = self.get_full_path(name, key)
 		self._ensure_dir_exists(path)

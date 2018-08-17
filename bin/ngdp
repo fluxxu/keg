@@ -20,7 +20,7 @@ from keg import Keg, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.exceptions import IntegrityVerificationError, NetworkError
-from keg.http import StateCache
+from keg.http import StateCache, Versions
 from keg.utils import partition_hash, verify_data
 
 
@@ -442,6 +442,26 @@ def fetch(ctx, remote, metadata_only=True):
 def fetch_all(ctx, metadata_only=True):
 	for remote in ctx.obj.fetchable_remotes:
 		ctx.invoke(fetch, remote=remote, metadata_only=metadata_only)
+
+
+@main.command("force-fetch")
+@click.argument("remote")
+@click.argument("version-keys", nargs=-1, required=True)
+@click.option("--metadata-only", is_flag=True)
+@click.pass_context
+def force_fetch(ctx, remote, version_keys, metadata_only):
+	remote = ctx.obj._clean_remote(remote)
+	keg: Keg = ctx.obj.get_remote(remote)
+	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.response_cache_dir))
+
+	for version_key in version_keys:
+		psvfile = StateCache(ctx.obj.response_cache_dir).read_psv("/versions", version_key)
+		versions = [Versions(row) for row in psvfile]
+
+		try:
+			ctx.obj.fetch(cdn, versions, metadata_only)
+		except IntegrityVerificationError as e:
+			raise click.ClickException(str(e))
 
 
 @main.command("fetch-object")

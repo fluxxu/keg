@@ -2,7 +2,7 @@ from enum import IntEnum
 from typing import Any, List, Tuple
 
 from . import psv
-from .http import CDNs, HttpBackend, StateCache
+from .http import CDNs, HttpBackend, StateCache, Versions
 
 
 class Source(IntEnum):
@@ -63,11 +63,7 @@ class Keg(HttpBackend):
 
 		return psvfile, response
 
-	def get_cached_psv(self, path: str, key: str, cache_dir: str) -> psv.PSVFile:
-		data = StateCache(cache_dir).read(path, key)
-		return psv.loads(data)
-
-	def get_cached_cdns(self, remote: str, cache_dir: str) -> List[CDNs]:
+	def get_cached_psv(self, remote: str, path: str, cache_dir: str) -> psv.PSVFile:
 		cursor = self.cache_db.cursor()
 		cursor.execute("""
 			SELECT digest
@@ -77,11 +73,17 @@ class Keg(HttpBackend):
 				path = ?
 			ORDER BY timestamp DESC
 			LIMIT 1
-		""", (remote, "/cdns"))
+		""", (remote, path))
 		results = cursor.fetchone()
 		if not results:
 			# Fall back to querying live
-			return self.get_cdns()
+			return self.get_psv(path)
 
-		psvfile = self.get_cached_psv("/cdns", results[0], cache_dir)
-		return [CDNs(row) for row in psvfile]
+		key = results[0]
+		return StateCache(cache_dir).read_psv(path, key)
+
+	def get_cached_cdns(self, remote: str, cache_dir: str) -> List[CDNs]:
+		return [CDNs(row) for row in self.get_cached_psv(remote, "/cdns", cache_dir)]
+
+	def get_cached_versions(self, remote: str, cache_dir: str) -> List[Versions]:
+		return [Versions(row) for row in self.get_cached_psv(remote, "/versions", cache_dir)]
