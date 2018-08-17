@@ -31,7 +31,15 @@ class Keg(HttpBackend):
 			", ".join(psvfile.header),
 			", ".join(["?"] * len(psvfile.header))
 		)
-		rows = [[self.remote, key, i, *row] for i, row in enumerate(psvfile)]
+		rows = []
+		for i, row in enumerate(psvfile):
+			# Always ensure lowercase entry of hexes
+			cleaned_row = [
+				cell.lower() if "!HEX:" in h.upper() else cell
+				for cell, h in zip(row, psvfile.raw_header)
+			]
+			rows.append([self.remote, key, i, *cleaned_row])
+
 		cursor.executemany(insert_tpl, rows)
 
 	def cache_response(self, response, path: str, cursor) -> None:
