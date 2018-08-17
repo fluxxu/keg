@@ -593,6 +593,7 @@ def inspect(ctx, remote):
 		FROM versions
 		WHERE
 			remote = ?
+		ORDER BY BuildID ASC
 	""", (remote,))
 	results = cursor.fetchall()
 
@@ -603,7 +604,8 @@ def inspect(ctx, remote):
 	click.echo(f"Remote: {remote}\n")
 	click.echo(tabulate(
 		results,
-		headers=("Build Config", "Build ID", "Version")
+		headers=("Build Config", "Build ID", "Version"),
+		tablefmt="psql"
 	))
 
 
