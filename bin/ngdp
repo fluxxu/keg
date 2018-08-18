@@ -345,13 +345,17 @@ class App:
 
 			# Download patch files
 			if build_config.patch_config:
-				patch_config = cdn.get_patch_config(
-					build_config.patch_config, verify=self.verify
-				)
-				for patch_entry in patch_config.patch_entries:
-					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-						if not cdn.local_cdn.has_patch_index(patch_key):
-							patch_indices_to_fetch.add(patch_key)
+				key = build_config.patch_config
+				try:
+					patch_config = cdn.get_patch_config(key, verify=self.verify)
+				except NetworkError as e:
+					tqdm.write(f"WARNING: Cannot get patch config {key}. Skipping.", sys.stderr)
+				else:
+					for patch_entry in patch_config.patch_entries:
+						for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
+							if not cdn.local_cdn.has_patch_index(patch_key):
+								patch_indices_to_fetch.add(patch_key)
+
 		self._download("Fetching indices...", indices_to_fetch, cdn.fetch_index)
 		self._download("Fetching patch indices...", indices_to_fetch, cdn.fetch_patch_index)
 
@@ -392,13 +396,17 @@ class App:
 
 			# Download patch files
 			if build_config.patch_config:
-				patch_config = cdn.get_patch_config(
-					build_config.patch_config, verify=self.verify
-				)
-				for patch_entry in patch_config.patch_entries:
-					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-						if not cdn.local_cdn.has_patch(patch_key):
-							patch_files_to_fetch.add(patch_key)
+				try:
+					patch_config = cdn.get_patch_config(
+						build_config.patch_config, verify=self.verify
+					)
+				except NetworkError:
+					tqdm.write(f"WARNING: Cannot get patch config {key}. Skipping.", sys.stderr)
+				else:
+					for patch_entry in patch_config.patch_entries:
+						for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
+							if not cdn.local_cdn.has_patch(patch_key):
+								patch_files_to_fetch.add(patch_key)
 
 		self._download(
 			"Fetching archives...", archives_to_fetch, cdn.download_data
