@@ -322,6 +322,13 @@ class App:
 		return cdn, versions, decryption_keys
 
 	def fetch(self, cdn, versions, metadata_only: bool=False):
+		# Regions are often duplicated per region.
+		# In order not to do all the work several times, we dedupe first.
+		deduped_versions = {
+			f"{v.build_config}:{v.cdn_config}:{v.product_config}": v for v in versions
+		}
+		versions = list(deduped_versions.values())
+
 		config_to_fetch = set()
 		for version in versions:
 			if not cdn.local_cdn.has_config(version.build_config):
