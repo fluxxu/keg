@@ -499,7 +499,7 @@ def fetch_object(ctx, keys, type):
 @main.command("add")
 @click.argument("paths", nargs=-1, required=True)
 @click.option("--type", required=True, type=click.Choice(
-	["config", "cdns", "index", "versions"]
+	["config", "cdns", "data-index", "patch-index", "versions"]
 ))
 @click.option("--remote")
 @click.pass_context
@@ -548,11 +548,12 @@ def add_object(ctx, paths, type, remote):
 			)
 			_ingest_move(path, ngdp_path)
 
-		elif type == "index":
+		elif type in ("data-index", "patch-index"):
 			key = os.path.splitext(key)[0]
-			verify_data(f"archive index", data[-28:], key, verify=ctx.obj.verify)
+			verify_data(type, data[-28:], key, verify=ctx.obj.verify)
+			obj_dir = "data" if type == "data-index" else "patch"
 			ngdp_path = os.path.join(
-				ctx.obj.objects_path, "data", partition_hash(key) + ".index"
+				ctx.obj.objects_path, obj_dir, partition_hash(key) + ".index"
 			)
 			_ingest_move(path, ngdp_path)
 
