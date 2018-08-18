@@ -339,9 +339,11 @@ class App:
 				if not cdn.local_cdn.has_index(archive_key):
 					indices_to_fetch.add(archive_key)
 
-			build_config = cdn.get_build_config(
-				version.build_config, verify=self.verify
-			)
+			try:
+				build_config = cdn.get_build_config(version.build_config, verify=self.verify)
+			except NetworkError as e:
+				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
+				continue
 
 			# Download patch files
 			if build_config.patch_config:
@@ -383,9 +385,13 @@ class App:
 				verify=self.verify
 			)
 
-			build_config = cdn.get_build_config(
-				version.build_config, verify=self.verify
-			)
+			try:
+				build_config = cdn.get_build_config(
+					version.build_config, verify=self.verify
+				)
+			except NetworkError as e:
+				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
+				continue
 
 			encoding_file = build_config.get_encoding_file(cdn, verify=self.verify)
 			if encoding_file:
