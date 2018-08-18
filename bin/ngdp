@@ -371,7 +371,10 @@ class App:
 		archives_to_fetch = set()
 		loose_files_to_fetch = set()
 		patch_files_to_fetch = set()
+		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
 		for version in versions:
+			msg = f"Preparing version {version.build_config}"
+			bar.set_description_str(msg)
 			try:
 				cdn_config = cdn.get_cdn_config(version.cdn_config, verify=self.verify)
 			except NetworkError:
@@ -384,6 +387,7 @@ class App:
 					archives_to_fetch.add(archive)
 
 			# Create the merged archive group
+			bar.set_description_str(f"{msg}: Creating merged archive")
 			archive_group = ArchiveGroup(
 				cdn_config.archives,
 				cdn_config.archive_group,
@@ -391,6 +395,7 @@ class App:
 				verify=self.verify
 			)
 
+			bar.set_description_str(f"{msg}: Retrieving build configuration")
 			try:
 				build_config = cdn.get_build_config(
 					version.build_config, verify=self.verify
@@ -399,6 +404,7 @@ class App:
 				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
 				continue
 
+			bar.set_description_str(f"{msg}: Retrieving encoding file")
 			try:
 				encoding_file = build_config.get_encoding_file(cdn, verify=self.verify)
 			except NetworkError:
@@ -413,6 +419,7 @@ class App:
 
 			# Download patch files
 			if build_config.patch_config:
+				bar.set_description_str(f"{msg}: Retrieving patch configuration")
 				try:
 					patch_config = cdn.get_patch_config(
 						build_config.patch_config, verify=self.verify
@@ -424,6 +431,8 @@ class App:
 						for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
 							if not cdn.local_cdn.has_patch(patch_key):
 								patch_files_to_fetch.add(patch_key)
+
+		bar.close()
 
 		self._download(
 			"Fetching archives...", archives_to_fetch, cdn.download_data
