@@ -498,7 +498,9 @@ def fetch_object(ctx, keys, type):
 
 @main.command("add")
 @click.argument("paths", nargs=-1, required=True)
-@click.option("--type", required=True, type=click.Choice(["config", "cdns", "versions"]))
+@click.option("--type", required=True, type=click.Choice(
+	["config", "cdns", "index", "versions"]
+))
 @click.option("--remote")
 @click.pass_context
 def add_object(ctx, paths, type, remote):
@@ -543,6 +545,14 @@ def add_object(ctx, paths, type, remote):
 
 			ngdp_path = os.path.join(
 				ctx.obj.response_cache_dir, type, partition_hash(key)
+			)
+			_ingest_move(path, ngdp_path)
+
+		elif type == "index":
+			key = os.path.splitext(key)[0]
+			verify_data(f"archive index", data[-28:], key, verify=ctx.obj.verify)
+			ngdp_path = os.path.join(
+				ctx.obj.objects_path, "data", partition_hash(key) + ".index"
 			)
 			_ingest_move(path, ngdp_path)
 
