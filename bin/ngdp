@@ -393,7 +393,12 @@ class App:
 				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
 				continue
 
-			encoding_file = build_config.get_encoding_file(cdn, verify=self.verify)
+			try:
+				encoding_file = build_config.get_encoding_file(cdn, verify=self.verify)
+			except NetworkError:
+				tqdm.write(f"WARNING: Cannot get encoding file {build_config.encodings}.")
+				encoding_file = None
+
 			if encoding_file:
 				# Download loose files
 				for key in encoding_file.encoding_keys:
