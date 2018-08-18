@@ -44,6 +44,12 @@ class BaseCDN:
 		verify_data("patch file", data, key, verify)
 		return data
 
+	def fetch_patch_index(self, key: str, verify: bool=False) -> bytes:
+		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
+			data = resp.read()
+		verify_data("patch index", data[-28:], key, verify)
+		return data
+
 	def load_config(self, key: str, verify: bool=False) -> dict:
 		return blizini.load(
 			self.fetch_config(key, verify=verify).decode()
@@ -134,6 +140,9 @@ class LocalCDN(BaseCDN):
 
 	def has_patch(self, key: str) -> bool:
 		return self.exists(f"/patch/{partition_hash(key)}")
+
+	def has_patch_index(self, key: str) -> bool:
+		return self.exists(f"/patch/{partition_hash(key)}.index")
 
 	def has_config_item(self, key: str) -> bool:
 		return self.config_exists(f"/{partition_hash(key)}")
