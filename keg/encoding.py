@@ -117,20 +117,24 @@ class EncodingFile:
 				self._content_keys[content_key] = keys
 				yield content_key, keys
 
-	def has_encoding_key(self, key: str) -> bool:
-		if self._encoding_keys:
-			return key in self._encoding_keys
-
-		for ekey in self.encoding_keys:
-			if ekey == key:
-				return True
-
-		return False
-
-	def find_by_content_key(self, key: str) -> str:
+	def preload_content(self) -> None:
 		if not self._content_keys:
 			# Fill content key cache by iterating without doing anything
 			for obj in self.content_keys:
 				pass
-			assert self._content_keys
+			assert self._encoding_keys
+
+	def preload_encoding(self) -> None:
+		if not self._encoding_keys:
+			# Fill encoding key cache by iterating without doing anything
+			for obj in self.encoding_keys:
+				pass
+			assert self._encoding_keys
+
+	def has_encoding_key(self, key: str) -> bool:
+		self.preload_encoding()
+		return key in self._encoding_keys
+
+	def find_by_content_key(self, key: str) -> str:
+		self.preload_content()
 		return self._content_keys[key][0]
