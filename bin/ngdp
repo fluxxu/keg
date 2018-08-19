@@ -625,22 +625,26 @@ def add_object(ctx, paths, type, remote):
 		for path in paths:
 			key = os.path.basename(path)
 			ngdp_path = os.path.join(ctx.obj.objects_path, "data", partition_hash(key))
-			with open(path, "rb") as f:
-				blte.verify_blte_data(f, key)
-
 			# First, check if the key is a known encoding file
+
+			found = False
 			if key in encoding_keys:
 				tqdm.write(f"{key} is an encoding file.")
-				_ingest_move(path, ngdp_path)
+				found = True
 			else:
 				# Otherwise, look for the key in all encoding files
 				for encoding_file in encodings:
 					if encoding_file.has_encoding_key(key):
 						tqdm.write(f"Found {key} in {encoding_file}")
-						_ingest_move(path, ngdp_path)
+						found = True
 						break
 				else:
 					tqdm.write(f"Cannot find {key} in any known encoding file. Will not add.")
+
+			if found:
+				with open(path, "rb") as f:
+					blte.verify_blte_data(f, key)
+				_ingest_move(path, ngdp_path)
 
 		return
 
