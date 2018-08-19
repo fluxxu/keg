@@ -435,7 +435,16 @@ class App:
 
 			if encoding_file:
 				# Download loose files
-				for key in encoding_file.encoding_keys:
+				bar.set_description_str("Parsing encoding file")
+				keys = list(encoding_file.encoding_keys)
+				bar.total = len(keys)
+				bar.bar_format = None
+				bar.ncols = 0
+
+				for key in keys:
+					bar.update()
+					bar.set_description_str(f"Checking {key}")
+
 					if not archive_group.has_file(key) and not cdn.local_cdn.has_data(key):
 						loose_files_to_fetch.add(key)
 
