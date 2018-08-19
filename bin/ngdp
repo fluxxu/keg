@@ -602,13 +602,38 @@ def add_object(ctx, paths, type, remote):
 		click.echo("Loading known encoding files...")
 
 		cursor = ctx.obj.db.cursor()
-		cursor.execute("SELECT distinct(BuildConfig) FROM versions")
+		if remote:
+			cursor.execute("""
+				SELECT distinct(BuildConfig), CDNConfig
+				FROM versions
+				WHERE remote = ?
+				GROUP BY BuildConfig
+			""", (remote, ))
+		else:
+			cursor.execute("""
+				SELECT distinct(BuildConfig), CDNConfig
+				FROM versions
+				GROUP BY BuildConfig
+			""")
+
 		results = cursor.fetchall()
 
 		encodings = []
 		encoding_keys = set()
 		cdn = ctx.obj.local_cdn
-		for build_config_key, in results:
+		indexed_keys = set()
+		for build_config_key, cdn_config_key in results:
+			if cdn.has_config(cdn_config_key):
+				cdn_config = cdn.get_cdn_config(cdn_config_key)
+				tqdm.write("Reading archive indices")
+				for archive_key in cdn_config.archives:
+					if cdn.has_index(archive_key):
+						archive_index = cdn.get_index(archive_key, verify=ctx.obj.verify)
+						for key, _, _ in archive_index.items:
+							indexed_keys.add(key)
+			else:
+				continue
+
 			if cdn.has_config(build_config_key):
 				build_config = cdn.get_build_config(build_config_key)
 
@@ -625,14 +650,19 @@ def add_object(ctx, paths, type, remote):
 		for path in paths:
 			key = os.path.basename(path)
 			ngdp_path = os.path.join(ctx.obj.objects_path, "data", partition_hash(key))
-			# First, check if the key is a known encoding file
 
 			found = False
+			# First, check if the key is a known encoding file
 			if key in encoding_keys:
 				tqdm.write(f"{key} is an encoding file.")
 				found = True
+			elif key in indexed_keys:
+				# Then, check if the key is present in archives.
+				# If it is, we don't want to add it for now.
+				tqdm.write(f"{key} appears in an archive. Ignoring.")
+				continue
 			else:
-				# Otherwise, look for the key in all encoding files
+				# Finally, look for the key in all encoding files
 				for encoding_file in encodings:
 					if encoding_file.has_encoding_key(key):
 						tqdm.write(f"Found {key} in {encoding_file}")
