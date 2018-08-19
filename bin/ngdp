@@ -5,7 +5,7 @@ import re
 import sqlite3
 from datetime import datetime
 from glob import iglob
-from io import BytesIO, StringIO
+from io import BytesIO
 from itertools import chain
 from typing import List, Set, Tuple
 from urllib.parse import urlparse
@@ -29,13 +29,6 @@ DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
 
 def looks_like_md5(s: str) -> bool:
 	return bool(re.match(r"[0-9a-f]{32}", s))
-
-
-def pretty_psv(psvfile, tablefmt="psql"):
-	return tabulate([
-		[cell.replace(" ", "\n") for cell in row]
-		for row in psvfile
-	], headers=psvfile.header, tablefmt=tablefmt)
 
 
 class AmbiguousVersionError(click.ClickException):
@@ -79,6 +72,15 @@ class App:
 		for remote in self.remotes:
 			if self.config["remotes"][remote].get("default-fetch"):
 				yield remote
+
+	def tabulate(self, table, headers=None) -> str:
+		if isinstance(table, psv.PSVFile):
+			headers = table.header
+			table = [
+				[cell.replace(" ", "\n") for cell in row] for row in table
+			]
+
+		return tabulate(table, headers=headers, tablefmt=self.table_format)
 
 	def _download(self, message: str, iterable: Set[str], callback):
 		if not iterable:
@@ -463,10 +465,12 @@ class App:
 @click.group()
 @click.option("--ngdp-dir", default=".ngdp")
 @click.option("--cdn")
+@click.option("--table-format", default="psql")
 @click.pass_context
-def main(ctx, ngdp_dir, cdn):
+def main(ctx, ngdp_dir, cdn, table_format):
 	ctx.obj = App(ngdp_dir)
 	ctx.obj.force_cdn = cdn
+	ctx.obj.table_format = table_format
 
 
 @main.command()
@@ -697,10 +701,8 @@ def inspect(ctx, remote):
 		return
 
 	click.echo(f"Remote: {remote}\n")
-	click.echo(tabulate(
-		results,
-		headers=("Build Config", "Build ID", "Version"),
-		tablefmt="psql"
+	click.echo(ctx.obj.tabulate(
+		results, headers=("Build Config", "Build ID", "Version"),
 	))
 
 
@@ -731,10 +733,9 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 
 	if show_tags:
 		click.echo("Valid tags:\n")
-		table = tabulate(
+		table = ctx.obj.tabulate(
 			[(k, v[0]) for k, v in install_file.tags.items()],
-			tablefmt="psql",
-			headers=["Tag", "Type"]
+			headers=("Tag", "Type")
 		)
 		click.secho(table, fg="black", bold=True)
 		return
@@ -742,8 +743,8 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 	entries = sorted(install_file.filter_entries(tags))
 
 	if dryrun:
-		table = tabulate(
-			entries, tablefmt="psql", headers=["Filename", "Digest", "Size"]
+		table = ctx.obj.tabulate(
+			entries, headers=["Filename", "Digest", "Size"]
 		)
 		click.secho(table, fg="black", bold=True)
 
@@ -851,7 +852,7 @@ def show_log(ctx, remote, type):
 		click.echo(f"URL: {remote + column}\n")
 		if state_cache.exists(type, digest):
 			contents = state_cache.read(type, digest)
-			table = pretty_psv(psv.load(StringIO(contents)))
+			table = ctx.obj.tabulate(psv.loads(contents))
 			click.secho(table, fg="black", bold=True)
 		else:
 			click.secho("(not available)", fg="red")
@@ -1005,7 +1006,7 @@ def parse_index(ctx, key_or_path, format):
 	items = list(archive_index.items)
 
 	if format == "table":
-		output = tabulate(items, tablefmt="psql", headers=("Key", "Size", "Offset"))
+		output = ctx.obj.tabulate(items, headers=("Key", "Size", "Offset"))
 	elif format == "json":
 		output = json.dumps(items, indent="\t")
 
