@@ -1,7 +1,7 @@
 import struct
 from binascii import hexlify
 from io import BytesIO
-from typing import Dict, Iterable, List, Tuple
+from typing import IO, Dict, Iterable, List, Tuple, Union
 
 from . import blte
 from .utils import verify_data
@@ -9,11 +9,15 @@ from .utils import verify_data
 
 class EncodingFile:
 	def __init__(
-		self, data: bytes, content_key: str, encoded_key: str, verify: bool=False
+		self, data: Union[IO, bytes], content_key: str, encoded_key: str, verify: bool=False
 	) -> None:
 		self._encoding_keys: List[str] = []
 		self._content_keys: Dict[str, List[str]] = {}
-		decoded_data = blte.loads(data, encoded_key, verify=verify)
+		if isinstance(data, bytes):
+			decoded_data = blte.loads(data, encoded_key, verify=verify)
+		else:
+			decoded_data = blte.load(data, encoded_key, verify=verify)
+
 		verify_data("encoding file", decoded_data, content_key, verify)
 		self.parse_header(decoded_data)
 
