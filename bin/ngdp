@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from keg import Keg, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
-from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
+from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper, LocalCDN
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache, Versions
@@ -63,6 +63,7 @@ class App:
 		self.db_path = os.path.join(self.ngdp_path, "keg.db")
 		self.force_cdn = ""
 		self.init_config()
+		self.local_cdn = LocalCDN(self.objects_path)
 
 		if os.path.exists(self.ngdp_path):
 			self.db = sqlite3.connect(self.db_path)
@@ -578,6 +579,7 @@ def fetch_object(ctx, keys, type):
 	"cdns",
 	"config",
 	"data-index",
+	"loose-file",
 	"patch",
 	"patch-index",
 	"versions",
@@ -591,6 +593,52 @@ def add_object(ctx, paths, type, remote):
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
 		os.rename(path, ngdp_path)
+
+	if type == "loose-file":
+		click.echo("Loading known encoding files...")
+
+		cursor = ctx.obj.db.cursor()
+		cursor.execute("SELECT distinct(BuildConfig) FROM versions")
+		results = cursor.fetchall()
+
+		encodings = []
+		encoding_keys = set()
+		cdn = ctx.obj.local_cdn
+		for build_config_key, in results:
+			if cdn.has_config(build_config_key):
+				build_config = cdn.get_build_config(build_config_key)
+
+				ckey, ekey = build_config.encodings
+				encoding_keys.add(ekey)
+				try:
+					encoding_file = build_config.get_encoding_file(cdn, verify=ctx.obj.verify)
+				except FileNotFoundError:
+					continue
+
+				if encoding_file:
+					encodings.append(encoding_file)
+
+		for path in paths:
+			key = os.path.basename(path)
+			ngdp_path = os.path.join(ctx.obj.objects_path, "data", partition_hash(key))
+			with open(path, "rb") as f:
+				blte.verify_blte_data(f, key)
+
+			# First, check if the key is a known encoding file
+			if key in encoding_keys:
+				tqdm.write(f"{key} is an encoding file.")
+				_ingest_move(path, ngdp_path)
+			else:
+				# Otherwise, look for the key in all encoding files
+				for encoding_file in encodings:
+					if encoding_file.has_encoding_key(key):
+						tqdm.write(f"Found {key} in {encoding_file}")
+						_ingest_move(path, ngdp_path)
+						break
+				else:
+					tqdm.write(f"Cannot find {key} in any known encoding file. Will not add.")
+
+		return
 
 	for path in paths:
 		key = os.path.basename(path)
