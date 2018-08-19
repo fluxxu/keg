@@ -20,6 +20,7 @@ from tqdm import tqdm
 from keg import Keg, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
+from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache, Versions
 from keg.utils import partition_hash, verify_data
@@ -1018,6 +1019,24 @@ def parse_index(ctx, key_or_path):
 		ctx.obj.tabulate(archive_index.items, headers=("Key", "Size", "Offset")),
 		fg="black", bold=True
 	)
+
+
+@main.command("parse-encoding")
+@click.argument("path")
+@click.pass_context
+def parse_encoding(ctx, path):
+	key = os.path.basename(os.path.splitext(path)[0])
+	if not looks_like_md5(key):
+		click.echo(f"WARNING: Invalid key name {repr(key)}", file=sys.stderr)
+
+	with open(path, "rb") as f:
+		encoding_file = EncodingFile(f, "", "", verify=False)
+
+	keys = list(encoding_file.encoding_keys)
+	click.echo(f"{len(keys)} encoding keys")
+
+	keys = list(encoding_file.content_keys)
+	click.echo(f"{len(keys)} content keys")
 
 
 if __name__ == "__main__":
