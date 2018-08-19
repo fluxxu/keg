@@ -735,8 +735,9 @@ def inspect(ctx, remote):
 @click.option("--show-tags", is_flag=True)
 @click.option("--tags", multiple=True)
 @click.option("--dry-run", "--dryrun", is_flag=True)
+@click.option("--only", multiple=True)
 @click.pass_context
-def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
+def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 	remote = ctx.obj._clean_remote(remote)
 
 	# version can be a BuildName, BuildID or BuildConfig
@@ -763,6 +764,14 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun):
 		return
 
 	entries = sorted(install_file.filter_entries(tags))
+	for filter in only:
+		dir_filter = filter.rstrip("/") + "/"
+		entries = [
+			entry for entry in entries if
+			entry[0] == filter or
+			entry[1] == filter or
+			entry[0].startswith(dir_filter)
+		]
 
 	if dryrun:
 		table = ctx.obj.tabulate(
