@@ -592,7 +592,11 @@ def add_object(ctx, paths, type, remote):
 		dirname = os.path.dirname(ngdp_path)
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
-		os.rename(path, ngdp_path)
+
+		if os.path.exists(ngdp_path):
+			tqdm.write(f"File already exists: {ngdp_path}. Skipping.")
+		else:
+			os.rename(path, ngdp_path)
 
 	if type == "loose-file":
 		click.echo("Loading known encoding files...")
