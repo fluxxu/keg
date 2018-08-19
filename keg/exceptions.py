@@ -7,6 +7,10 @@ class NetworkError(KegException):
 	pass
 
 
+class BLTEError(KegException):
+	pass
+
+
 class IntegrityVerificationError(KegException):
 	def __init__(self, object_name: str, digest: str, expected_digest: str) -> None:
 		message = (

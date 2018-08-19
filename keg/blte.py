@@ -4,6 +4,7 @@ from binascii import hexlify
 from io import BytesIO
 from typing import IO, Iterable, List, Tuple
 
+from .exceptions import BLTEError
 from .utils import verify_data
 
 
@@ -49,6 +50,15 @@ def verify_blte_data(fp: IO, key: str):
 		# Iterating verifies the block
 		pass
 
+	if dec.header_size:
+		# Single-frame BLTEs are already verified in .encoded_blocks
+		# For normal BLTEs, we need to check that there isn't more data at the end.
+		pos = dec.fp.tell()
+		dec.fp.read()
+		pos2 = dec.fp.tell()
+		if pos != pos2:
+			raise BLTEError(f"{pos2 - pos} extra bytes at the end of the file")
+
 
 class BLTEDecoder:
 	def __init__(self, fp: IO, key: str, verify: bool=False) -> None:
@@ -63,11 +73,11 @@ class BLTEDecoder:
 		self._header_data = self.fp.read(8)
 		blte_header = BytesIO(self._header_data)
 		assert blte_header.read(4) == b"BLTE"
-		header_size, = struct.unpack(">i", blte_header.read(4))
+		self.header_size, = struct.unpack(">i", blte_header.read(4))
 
-		if header_size > 0:
+		if self.header_size > 0:
 			assert self.fp.read(1) == b"\x0f"
-			block_info_data = self.fp.read(header_size - 9)
+			block_info_data = self.fp.read(self.header_size - 9)
 			if self.verify:
 				_data_to_verify = self._header_data + b"\x0f" + block_info_data
 				verify_data("BLTE header", _data_to_verify, self.key, self.verify)
