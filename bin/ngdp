@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa isort:skip
+import csv
 import json
 import re
 import sqlite3
 from datetime import datetime
 from glob import iglob
-from io import BytesIO
+from io import BytesIO, StringIO
 from itertools import chain
 from typing import List, Set, Tuple
 from urllib.parse import urlparse
@@ -84,6 +85,12 @@ class App:
 			if not isinstance(table, list):
 				table = list(table)
 			return json.dumps(table, indent="\t")
+		elif self.table_format == "csv":
+			ret = StringIO()
+			writer = csv.writer(ret)
+			for row in table:
+				writer.writerow(row)
+			return ret.getvalue()
 
 		return tabulate(table, headers=headers, tablefmt=self.table_format)
 
