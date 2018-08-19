@@ -117,6 +117,16 @@ class EncodingFile:
 				self._content_keys[content_key] = keys
 				yield content_key, keys
 
+	def has_encoding_key(self, key: str) -> bool:
+		if self._encoding_keys:
+			return key in self._encoding_keys
+
+		for ekey in self.encoding_keys:
+			if ekey == key:
+				return True
+
+		return False
+
 	def find_by_content_key(self, key: str) -> str:
 		if not self._content_keys:
 			# Fill content key cache by iterating without doing anything
