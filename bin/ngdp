@@ -43,6 +43,18 @@ class AmbiguousVersionError(click.ClickException):
 		return self.message + "\n\nThe candidates are:" + hints
 
 
+class RemoteParam(click.ParamType):
+	name = "remote"
+
+	def convert(self, value, param, ctx):
+		if "://" not in value:
+			value = ctx.obj.config["keg"].get(
+				"default-remote-prefix", DEFAULT_REMOTE_PREFIX
+			) + value
+
+		return value
+
+
 class App:
 	def __init__(self, ngdp_dir: str) -> None:
 		self.ngdp_path = os.path.abspath(ngdp_dir)
@@ -238,13 +250,6 @@ class App:
 			path=cdn.path,
 			config_path=cdn.config_path,
 		)
-
-	def _clean_remote(self, remote: str) -> str:
-		if "://" not in remote:
-			return self.config["keg"].get(
-				"default-remote-prefix", DEFAULT_REMOTE_PREFIX
-			) + remote
-		return remote
 
 	def find_version(self, version: str, remote: str) -> Tuple[str, str]:
 		cursor = self.db.cursor()
@@ -502,11 +507,10 @@ def init(ctx):
 
 
 @main.command()
-@click.argument("remote")
+@click.argument("remote", type=RemoteParam())
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def fetch(ctx, remote, metadata_only=True):
-	remote = ctx.obj._clean_remote(remote)
 	click.echo(f"Fetching {remote}")
 	keg = ctx.obj.get_remote(remote)
 	cdn, versions, decryption_keys = ctx.obj.fetch_stateful_data(keg)
@@ -529,12 +533,11 @@ def fetch_all(ctx, metadata_only=True):
 
 
 @main.command("force-fetch")
-@click.argument("remote")
+@click.argument("remote", type=RemoteParam())
 @click.argument("version-keys", nargs=-1, required=True)
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def force_fetch(ctx, remote, version_keys, metadata_only):
-	remote = ctx.obj._clean_remote(remote)
 	keg: Keg = ctx.obj.get_remote(remote)
 	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.response_cache_dir))
 
@@ -587,7 +590,7 @@ def fetch_object(ctx, keys, type):
 	"patch-index",
 	"versions",
 ]))
-@click.option("--remote")
+@click.option("--remote", type=RemoteParam())
 @click.pass_context
 def add_object(ctx, paths, type, remote):
 	def _ingest_move(path: str, ngdp_path: str) -> None:
@@ -621,7 +624,6 @@ def add_object(ctx, paths, type, remote):
 			elif type == "versions":
 				assert data.startswith(b"Region!STRING:0|")
 
-			remote = ctx.obj._clean_remote(remote)
 			keg = ctx.obj.get_remote(remote)
 
 			cursor = ctx.obj.db.cursor()
@@ -667,8 +669,6 @@ def remote(ctx):
 @click.pass_context
 def add_remote(ctx, remotes, default_fetch, writeable):
 	for remote in remotes:
-		remote = ctx.obj._clean_remote(remote)
-
 		if remote in ctx.obj.config["remotes"]:
 			raise click.ClickException(f"Remote {remote} already exists")
 
@@ -684,8 +684,6 @@ def add_remote(ctx, remotes, default_fetch, writeable):
 @click.pass_context
 def remove_remote(ctx, remotes):
 	for remote in remotes:
-		remote = ctx.obj._clean_remote(remote)
-
 		try:
 			del ctx.obj.config["remotes"][remote]
 		except KeyError:
@@ -702,11 +700,9 @@ def list_remotes(ctx):
 
 
 @main.command("inspect")
-@click.argument("remote")
+@click.argument("remote", type=RemoteParam())
 @click.pass_context
 def inspect(ctx, remote):
-	remote = ctx.obj._clean_remote(remote)
-
 	cursor = ctx.obj.db.cursor()
 	cursor.execute("""
 		SELECT
@@ -729,7 +725,7 @@ def inspect(ctx, remote):
 
 
 @main.command()
-@click.argument("remote")
+@click.argument("remote", type=RemoteParam())
 @click.argument("version")
 @click.argument("outdir", default=".")
 @click.option("--show-tags", is_flag=True)
@@ -738,8 +734,6 @@ def inspect(ctx, remote):
 @click.option("--only", multiple=True)
 @click.pass_context
 def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
-	remote = ctx.obj._clean_remote(remote)
-
 	# version can be a BuildName, BuildID or BuildConfig
 	build_config_key, cdn_config_key = ctx.obj.find_version(version, remote)
 
@@ -852,11 +846,10 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 
 
 @main.command("log")
-@click.argument("remote")
+@click.argument("remote", type=RemoteParam())
 @click.option("--type", default="versions", type=click.Choice(["versions", "cdns"]))
 @click.pass_context
 def show_log(ctx, remote, type):
-	remote = ctx.obj._clean_remote(remote)
 	column = f"/{type}"
 
 	cursor = ctx.obj.db.cursor()
@@ -891,11 +884,10 @@ def show_log(ctx, remote, type):
 
 
 @main.command("show")
-@click.argument("remote")
+@click.argument("remote", type=RemoteParam())
 @click.argument("object")
 @click.pass_context
 def show_object(ctx, remote, object):
-	remote = ctx.obj._clean_remote(remote)
 	if object.lower() == "buildconfig":
 		column = "BuildConfig"
 	elif object.lower() == "cdnconfig":
