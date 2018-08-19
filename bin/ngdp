@@ -80,6 +80,11 @@ class App:
 				[cell.replace(" ", "\n") for cell in row] for row in table
 			]
 
+		if self.table_format == "json":
+			if not isinstance(table, list):
+				table = list(table)
+			return json.dumps(table, indent="\t")
+
 		return tabulate(table, headers=headers, tablefmt=self.table_format)
 
 	def _download(self, message: str, iterable: Set[str], callback):
@@ -974,9 +979,8 @@ def fsck(ctx, delete):
 
 @main.command("parse-index")
 @click.argument("key_or_path")
-@click.option("--format", default="table", type=click.Choice(["table", "json"]))
 @click.pass_context
-def parse_index(ctx, key_or_path, format):
+def parse_index(ctx, key_or_path):
 	def get_actual_path(path):
 		if os.path.exists(path):
 			return path
@@ -1003,14 +1007,10 @@ def parse_index(ctx, key_or_path, format):
 
 	archive_index = ArchiveIndex(data, key, verify=ctx.obj.verify)
 
-	items = list(archive_index.items)
-
-	if format == "table":
-		output = ctx.obj.tabulate(items, headers=("Key", "Size", "Offset"))
-	elif format == "json":
-		output = json.dumps(items, indent="\t")
-
-	click.secho(output, fg="black", bold=True)
+	click.secho(
+		ctx.obj.tabulate(archive_index.items, headers=("Key", "Size", "Offset")),
+		fg="black", bold=True
+	)
 
 
 if __name__ == "__main__":
