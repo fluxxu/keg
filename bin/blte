@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # noqa isort:skip
+
+import click
+from tabulate import tabulate
+from tqdm import tqdm
+
+from keg import blte
+from keg.exceptions import IntegrityVerificationError
+
+
+@click.group()
+def main():
+	pass
+
+
+@main.command("dump")
+@click.argument("paths", nargs=-1)
+@click.option("--verify/--no-verify", default=True)
+def dump(paths, verify):
+	for path in paths:
+		key = os.path.basename(path)
+		with open(path, "rb") as f:
+			dec = blte.BLTEDecoder(f, key, verify=verify)
+			click.echo(tabulate(dec.block_table, headers=(
+				"Encoded size", "Decoded size", "Key"
+			)))
+
+
+@main.command("fix")
+@click.argument("paths", nargs=-1)
+@click.option("--verify/--no-verify", default=True)
+def fix(paths, verify):
+	for path in paths:
+		key = os.path.basename(path)
+		with open(path, "rb") as f:
+			dec = blte.BLTEDecoder(f, key, verify=verify)
+			if not dec.header_size:
+				click.echo("Cannot fix frameless BLTE files", sys.stderr)
+				return exit(1)
+
+			for block in dec.encoded_blocks:
+				# Iterate over all the blocks to reach the end of the stream
+				pass
+			# Reader's position should be at the last real data byte
+			pos = dec.fp.tell()
+
+			# If nothing remains, there's nothing to do
+			remainder = dec.fp.read()
+			if not remainder:
+				click.echo("Nothing to do")
+				return
+			else:
+				click.echo(f"Removing {len(remainder)} extra bytes from {path}")
+
+			# Seek back to beginning and read the real data into a buffer
+			dec.fp.seek(0)
+			data = dec.fp.read(pos)
+
+		click.echo(f"Fixing {path}")
+		# Write the data to a temp file
+		temp_path = path + ".temp"
+		with open(temp_path, "wb") as f:
+			f.write(data)
+
+		# Verify the temp file
+		# This should never fail, but just in case
+		with open(temp_path, "rb") as f:
+			blte.verify_blte_data(f, key)
+
+		# Finally, move the temp file to the original path
+		os.rename(temp_path, path)
+
+
+@main.command("verify")
+@click.argument("paths", nargs=-1)
+def verify(paths):
+	fail = 0
+	for path in paths:
+		key = os.path.basename(path)
+		with open(path, "rb") as f:
+			try:
+				blte.verify_blte_data(f, key)
+			except blte.BLTEError as e:
+				click.echo(f"{key}: FAIL: {e}", sys.stderr)
+				fail += 1
+			except IntegrityVerificationError as e:
+				click.echo(f"{key}: FAIL: {e}", sys.stderr)
+			else:
+				click.echo(f"{key}: OK")
+
+	exit(fail)
+
+
+if __name__ == "__main__":
+	main()
