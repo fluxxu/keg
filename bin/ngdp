@@ -1130,8 +1130,9 @@ def parse_encoding(ctx, path):
 @main.command("extract-archive")
 @click.argument("archive-key")
 @click.option("--out-dir", default=".")
+@click.option("--extract-blte/--no-extract-blte", default=True)
 @click.pass_context
-def extract_archive(ctx, archive_key, out_dir):
+def extract_archive(ctx, archive_key, out_dir, extract_blte):
 	cdn = ctx.obj.local_cdn
 	if not cdn.has_data(archive_key):
 		raise click.ClickException(f"Archive {archive_key} not found.")
@@ -1151,8 +1152,13 @@ def extract_archive(ctx, archive_key, out_dir):
 	for key, size, offset in items:
 		bar.update()
 		bar.set_description(f"Extracting {key}")
+		if extract_blte:
+			file_data = archive.get_file(key, size, offset, verify=ctx.obj.verify)
+		else:
+			file_data = archive.get_file_data(size, offset)
+
 		with open(os.path.join(out_dir, key), "wb") as f:
-			f.write(archive.get_file(key, size, offset, verify=ctx.obj.verify))
+			f.write(file_data)
 
 	bar.close()
 
