@@ -1191,11 +1191,15 @@ def reconstruct_archive(ctx, archive_key, fragment_paths):
 					continue
 				with open(filename, "rb") as f:
 					if ctx.obj.verify:
-						blte.verify_blte_data(f, key)
+						try:
+							blte.verify_blte_data(f, key)
+						except blte.BLTEError as e:
+							# This is actually okay, we only write the required bytes.
+							tqdm.write(f"WARNING: {str(e)}")
 						f.seek(0)
 					# Make sure we didn't miss some data somehow
 					assert archive_file.tell() == offset
-					archive_file.write(f.read())
+					archive_file.write(f.read(size))
 				break
 			else:
 				raise click.ClickException(f"Could not find {key} in fragment paths.")
