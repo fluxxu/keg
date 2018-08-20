@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 import requests
 
 from . import blizini
-from .archive import ArchiveIndex
+from .archive import Archive, ArchiveIndex
 from .configfile import BuildConfig, CDNConfig, PatchConfig
 from .exceptions import NetworkError
 from .utils import partition_hash, verify_data
@@ -66,6 +66,9 @@ class BaseCDN:
 
 	def get_product_config(self, key: str, verify: bool=False) -> dict:
 		return json.loads(self.fetch_config_data(key, verify))
+
+	def get_archive(self, key: str) -> Archive:
+		return Archive(key, self)
 
 	def get_index(self, key: str, verify: bool=False) -> ArchiveIndex:
 		return ArchiveIndex(self.fetch_index(key), key, verify=verify)
