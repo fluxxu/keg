@@ -576,6 +576,7 @@ def fetch_object(ctx, keys, type):
 @main.command("add")
 @click.argument("paths", nargs=-1, required=True)
 @click.option("--type", required=True, type=click.Choice([
+	"archive",
 	"cdns",
 	"config",
 	"data-index",
@@ -729,6 +730,16 @@ def add_object(ctx, paths, type, remote):
 
 			ngdp_path = os.path.join(
 				ctx.obj.objects_path, "patch", partition_hash(key)
+			)
+			_ingest_move(path, ngdp_path)
+
+		elif type == "archive":
+			# TODO verification
+			if not ctx.obj.local_cdn.has_index(key):
+				raise click.ClickException(f"Index for {key} not found")
+
+			ngdp_path = os.path.join(
+				ctx.obj.objects_path, "data", partition_hash(key)
 			)
 			_ingest_move(path, ngdp_path)
 
