@@ -1127,5 +1127,35 @@ def parse_encoding(ctx, path):
 	click.echo(f"{len(keys)} content keys")
 
 
+@main.command("extract-archive")
+@click.argument("archive-key")
+@click.option("--out-dir", default=".")
+@click.pass_context
+def extract_archive(ctx, archive_key, out_dir):
+	cdn = ctx.obj.local_cdn
+	if not cdn.has_data(archive_key):
+		raise click.ClickException(f"Archive {archive_key} not found.")
+	if not cdn.has_index(archive_key):
+		raise click.ClickException(f"Archive index {archive_key} not found.")
+
+	out_dir = os.path.abspath(os.path.join(out_dir, archive_key))
+	if os.path.exists(out_dir):
+		raise click.ClickException(f"Directory {out_dir} already exists")
+	os.makedirs(out_dir)
+
+	archive = cdn.get_archive(archive_key)
+	archive_index = cdn.get_index(archive_key, verify=ctx.obj.verify)
+	items = list(archive_index.items)
+
+	bar = tqdm(unit="files", ncols=0, leave=False, total=len(items))
+	for key, size, offset in items:
+		bar.update()
+		bar.set_description(f"Extracting {key}")
+		with open(os.path.join(out_dir, key), "wb") as f:
+			f.write(archive.get_file(key, size, offset, verify=ctx.obj.verify))
+
+	bar.close()
+
+
 if __name__ == "__main__":
 	main()
