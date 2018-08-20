@@ -1163,5 +1163,49 @@ def extract_archive(ctx, archive_key, out_dir, extract_blte):
 	bar.close()
 
 
+@main.command("reconstruct-archive")
+@click.argument("archive-key")
+@click.argument("fragment-paths", nargs=-1)
+@click.pass_context
+def reconstruct_archive(ctx, archive_key, fragment_paths):
+	cdn = ctx.obj.local_cdn
+	if cdn.has_data(archive_key):
+		raise click.ClickException(f"Archive {archive_key} already exists.")
+	if not cdn.has_index(archive_key):
+		raise click.ClickException(f"Index for {archive_key} not found.")
+
+	archive_index = cdn.get_index(archive_key, verify=ctx.obj.verify)
+	items = list(archive_index.items)
+	click.echo(f"Reconstructing archive: {len(items)} items required.")
+
+	# Sort items by offset, so they get written serially without seeking
+	items.sort(key=lambda k: k[2])
+
+	with open(archive_key + ".keg_temp", "wb") as archive_file:
+		bar = tqdm(unit="fragment", ncols=0, leave=False, total=len(items))
+		for key, size, offset in items:
+			bar.update()
+			for path in fragment_paths:
+				filename = os.path.join(path, key)
+				if not os.path.exists(filename):
+					continue
+				with open(filename, "rb") as f:
+					if ctx.obj.verify:
+						blte.verify_blte_data(f, key)
+						f.seek(0)
+					# Make sure we didn't miss some data somehow
+					assert archive_file.tell() == offset
+					archive_file.write(f.read())
+				break
+			else:
+				raise click.ClickException(f"Could not find {key} in fragment paths.")
+
+		bar.set_description("Finalizing archive...")
+
+	os.rename(archive_key + ".keg_temp", archive_key)
+	bar.close()
+	click.echo(f"Written to {os.path.abspath(archive_key)}")
+
+
 if __name__ == "__main__":
 	main()
