@@ -651,6 +651,9 @@ def add_object(ctx, paths, type, remote):
 		for path in paths:
 			key = os.path.basename(path)
 			ngdp_path = os.path.join(ctx.obj.objects_path, "data", partition_hash(key))
+			if os.path.exists(ngdp_path):
+				tqdm.write(f"File already exists: {ngdp_path}. Skipping.")
+				continue
 
 			found = False
 			# First, check if the key is a known encoding file
