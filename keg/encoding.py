@@ -122,7 +122,7 @@ class EncodingFile:
 			# Fill content key cache by iterating without doing anything
 			for obj in self.content_keys:
 				pass
-			assert self._encoding_keys
+			assert self._content_keys
 
 	def preload_encoding(self) -> None:
 		if not self._encoding_keys:
