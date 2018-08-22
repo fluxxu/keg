@@ -3,7 +3,6 @@ import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import click
 from tabulate import tabulate
-from tqdm import tqdm
 
 from keg import blte
 from keg.exceptions import IntegrityVerificationError
@@ -12,6 +11,19 @@ from keg.exceptions import IntegrityVerificationError
 @click.group()
 def main():
 	pass
+
+
+@main.command("extract")
+@click.argument("infile")
+@click.argument("outfile")
+@click.option("--verify/--no-verify", default=True)
+def extract(infile, outfile, verify):
+	key = os.path.basename(infile)
+	with open(infile, "rb") as f:
+		dec = blte.BLTEDecoder(f, key, verify=verify)
+		with open(outfile, "wb") as of:
+			for block in dec.blocks:
+				of.write(block)
 
 
 @main.command("dump")
