@@ -134,7 +134,14 @@ The protocol supports:
 ### What is BLTE?
 
 BLTE ("BLock Table Encoding") is a compression/encryption container that
-supports chunking files.
+supports chunking data.
+
+Keg includes a `blte` binary utility to deal with BLTE files:
+
+ - `blte extract` (or `blte x`): Decompresses and extracts a BLTE file.
+ - `blte verify`: Verifies a BLTE file against its filename key.
+ - `blte fix`: Fixes BLTE files with extraneous data at the end.
+ - `blte dump`: Dumps the block table of the BLTE file, for debugging purposes.
 
 
 ### What is CASC?
