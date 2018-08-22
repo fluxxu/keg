@@ -7,7 +7,6 @@ import sqlite3
 from datetime import datetime
 from glob import iglob
 from io import BytesIO, StringIO
-from itertools import chain
 from typing import List, Set, Tuple
 from urllib.parse import urlparse
 
@@ -270,7 +269,7 @@ class App:
 		else:
 			raise AmbiguousVersionError(
 				f"Version {repr(version)} is ambiguous",
-				sorted(set(chain(*results)))
+				sorted(set(k for k, _ in results))
 			)
 
 	def get_remote(self, remote: str) -> Keg:
