@@ -120,6 +120,22 @@ def test_espec_block_longform_manyframes():
 	]
 
 
+def test_espec_block_longform_manyframes_unspecified_zipped():
+	spec = espec.EncodingSpec("b:{22=n,54=z,160=n,20480=n,128=n,16384=n,*=z}")
+	frame = spec.frame
+
+	assert isinstance(frame, espec.BlockTableFrame)
+	assert frame.frame_info == [
+		(22, 1, espec.RawFrame()),
+		(54, 1, espec.ZipFrame()),
+		(160, 1, espec.RawFrame()),
+		(20480, 1, espec.RawFrame()),
+		(128, 1, espec.RawFrame()),
+		(16384, 1, espec.RawFrame()),
+		(-1, -1, espec.ZipFrame()),
+	]
+
+
 def test_espec_equality():
 	assert espec.RawFrame() == espec.RawFrame()
 	assert espec.ZipFrame(9, 15) == espec.ZipFrame(9, 15)

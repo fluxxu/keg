@@ -59,28 +59,33 @@ FrameInfo = Tuple[int, int, Frame]
 
 def _get_shortform_block_frame_info(node) -> FrameInfo:
 	size_spec_node = node.children[0]
-	block_size_node = size_spec_node.children[0].children[0]
-
-	block_size = int(block_size_node.children[0].text)
-	block_size_unit = block_size_node.children[1].text
-	# Can be "K", "M" or ""
-	if block_size_unit == "K":
-		block_size *= 1024
-	elif block_size_unit == "M":
-		block_size *= 1024 * 1024
+	if size_spec_node.text == "*":
+		# eg: b:{22=n,54=z,160=n,20480=n,128=n,16384=n,*=z}
+		block_size = -1
+		repeat = -1
 	else:
-		assert not block_size_unit
+		block_size_node = size_spec_node.children[0].children[0]
 
-	block_size_args_node = size_spec_node.children[0].children[1]
-	if block_size_args_node.text == "":
-		# Repeat not specified, defaults to 1
-		repeat = 1
-	else:
-		repeat_num = block_size_args_node.children[0].children[1].text
-		if repeat_num == "":
-			repeat = -1
+		block_size = int(block_size_node.children[0].text)
+		block_size_unit = block_size_node.children[1].text
+		# Can be "K", "M" or ""
+		if block_size_unit == "K":
+			block_size *= 1024
+		elif block_size_unit == "M":
+			block_size *= 1024 * 1024
 		else:
-			repeat = int(repeat_num)
+			assert not block_size_unit
+
+		block_size_args_node = size_spec_node.children[0].children[1]
+		if block_size_args_node.text == "":
+			# Repeat not specified, defaults to 1
+			repeat = 1
+		else:
+			repeat_num = block_size_args_node.children[0].children[1].text
+			if repeat_num == "":
+				repeat = -1
+			else:
+				repeat = int(repeat_num)
 
 	subframe = get_frame_for_node(node.children[2].children[0])
 	return block_size, repeat, subframe
