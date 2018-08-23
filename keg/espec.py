@@ -1,3 +1,4 @@
+from typing import Type
 
 from parsimonious.grammar import Grammar
 
@@ -44,3 +45,52 @@ STAR = "*"
 BEGIN = "{"
 END = "}"
 """)
+
+
+class Frame:
+	@classmethod
+	def from_node(cls, node):
+		raise NotImplementedError
+
+
+class BlockTableFrame(Frame):
+	@classmethod
+	def from_node(cls, node):
+		return cls()
+
+
+class EncryptedFrame(Frame):
+	@classmethod
+	def from_node(cls, node):
+		return cls()
+
+
+class RawFrame(Frame):
+	@classmethod
+	def from_node(cls, node):
+		return cls()
+
+
+class ZipFrame(Frame):
+	@classmethod
+	def from_node(cls, node):
+		return cls()
+
+
+class EncodingSpec:
+	def __init__(self, spec: str) -> None:
+		self.spec = spec
+		self.nodes = GRAMMAR.parse(spec)
+		top_level_node = self.nodes.children[0]
+
+		cls: Type[Frame]
+		if top_level_node.expr_name == "data_raw":
+			cls = RawFrame
+		elif top_level_node.expr_name == "data_zipped":
+			cls = ZipFrame
+		elif top_level_node.expr_name == "data_encrypted":
+			cls = EncryptedFrame
+		elif top_level_node.expr_name == "data_block":
+			cls = BlockTableFrame
+
+		self.top_level_block = cls.from_node(top_level_node)
