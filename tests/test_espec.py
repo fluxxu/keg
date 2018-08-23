@@ -55,6 +55,71 @@ def test_espec_encrypted_zip():
 	assert isinstance(frame.subframe, espec.ZipFrame)
 
 
+def test_espec_block_shortform():
+	spec = espec.EncodingSpec("b:64K=n")
+	frame = spec.frame
+
+	assert isinstance(frame, espec.BlockTableFrame)
+	assert frame.frame_info == [
+		(65536, 1, espec.RawFrame())
+	]
+
+
+def test_espec_block_shortform_repeat():
+	spec = espec.EncodingSpec("b:64K*2=n")
+	frame = spec.frame
+
+	assert isinstance(frame, espec.BlockTableFrame)
+	assert frame.frame_info == [
+		(65536, 2, espec.RawFrame())
+	]
+
+
+def test_espec_block_shortform_repeat_eof():
+	spec = espec.EncodingSpec("b:64K*=n")
+	frame = spec.frame
+
+	assert isinstance(frame, espec.BlockTableFrame)
+	assert frame.frame_info == [
+		(65536, -1, espec.RawFrame())
+	]
+
+
+def test_espec_block_longform():
+	spec = espec.EncodingSpec("b:{1898=z,51570=n}")
+	frame = spec.frame
+
+	assert isinstance(frame, espec.BlockTableFrame)
+	assert frame.frame_info == [
+		(1898, 1, espec.ZipFrame()),
+		(51570, 1, espec.RawFrame()),
+	]
+
+
+def test_espec_longform_oneframe():
+	spec = espec.EncodingSpec("b:{16K*=z:{6,mpq}}")
+	frame = spec.frame
+
+	assert isinstance(frame, espec.BlockTableFrame)
+	assert frame.frame_info == [
+		(16 * 1024, -1, espec.ZipFrame(level=6, bits=0)),
+	]
+
+
+def test_espec_block_longform_manyframes():
+	spec = espec.EncodingSpec("b:{128=z:6,32768=z:6,8192=z:6,2768=z:6,64K*=z:6}")
+	frame = spec.frame
+
+	assert isinstance(frame, espec.BlockTableFrame)
+	assert frame.frame_info == [
+		(128, 1, espec.ZipFrame(level=6)),
+		(32768, 1, espec.ZipFrame(level=6)),
+		(8192, 1, espec.ZipFrame(level=6)),
+		(2768, 1, espec.ZipFrame(level=6)),
+		(65536, -1, espec.ZipFrame(level=6)),
+	]
+
+
 def test_espec_equality():
 	assert espec.RawFrame() == espec.RawFrame()
 	assert espec.ZipFrame(9, 15) == espec.ZipFrame(9, 15)
@@ -76,3 +141,9 @@ def test_espec_equality():
 		espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}") ==
 		espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}")
 	)
+
+	# Shortform equality
+	assert espec.EncodingSpec("b:64K=n") == espec.EncodingSpec("b:65536=n")
+	assert espec.EncodingSpec("b:64K*1=n") == espec.EncodingSpec("b:65536=n")
+	assert espec.EncodingSpec("b:64K*1=n") != espec.EncodingSpec("b:65536*=n")
+	assert espec.EncodingSpec("b:64K*2=n") != espec.EncodingSpec("b:65536*1=n")
