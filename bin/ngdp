@@ -1126,21 +1126,28 @@ def parse_index(ctx, key_or_path):
 
 
 @main.command("parse-encoding")
-@click.argument("path")
+@click.argument("paths", nargs=-1)
 @click.pass_context
-def parse_encoding(ctx, path):
-	key = os.path.basename(os.path.splitext(path)[0])
-	if not looks_like_md5(key):
-		click.echo(f"WARNING: Invalid key name {repr(key)}", file=sys.stderr)
+def parse_encoding(ctx, paths):
+	for path in paths:
+		key = os.path.basename(os.path.splitext(path)[0])
+		if not looks_like_md5(key):
+			click.echo(f"WARNING: Invalid key name {repr(key)}", file=sys.stderr)
 
-	with open(path, "rb") as f:
-		encoding_file = EncodingFile(f, "", "", verify=False)
+		with open(path, "rb") as f:
+			encoding_file = EncodingFile(f, "", "", verify=False)
 
-	keys = list(encoding_file.encoding_keys)
-	click.echo(f"{len(keys)} encoding keys")
+		keys = list(encoding_file.encoding_keys)
+		# click.echo(f"{len(keys)} encoding keys")
 
-	keys = list(encoding_file.content_keys)
-	click.echo(f"{len(keys)} content keys")
+		keys = list(encoding_file.content_keys)
+		# click.echo(f"{len(keys)} content keys")
+
+		if encoding_file.specs:
+			click.echo(ctx.obj.tabulate(
+				((spec,) for spec in encoding_file.specs),
+				headers=("Encoding specs",)
+			))
 
 
 @main.command("extract-archive")
