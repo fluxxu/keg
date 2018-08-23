@@ -757,7 +757,7 @@ def remote(ctx):
 
 
 @remote.command("add")
-@click.argument("remotes", nargs=-1, required=True)
+@click.argument("remotes", nargs=-1, required=True, type=RemoteParam())
 @click.option("--writeable", is_flag=True)
 @click.option("--default-fetch/--no-default-fetch", default=True)
 @click.pass_context
@@ -774,7 +774,7 @@ def add_remote(ctx, remotes, default_fetch, writeable):
 
 
 @remote.command("rm")
-@click.argument("remotes", nargs=-1, required=True)
+@click.argument("remotes", nargs=-1, required=True, type=RemoteParam())
 @click.pass_context
 def remove_remote(ctx, remotes):
 	for remote in remotes:
