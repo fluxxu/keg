@@ -173,3 +173,8 @@ class EncodingSpec:
 		self.spec = spec
 		self.nodes = GRAMMAR.parse(spec)
 		self.frame = get_frame_for_node(self.nodes.children[0])
+
+	def __eq__(self, other):
+		if not isinstance(other, EncodingSpec):
+			return False
+		return self.frame == other.frame

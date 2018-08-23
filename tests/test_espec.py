@@ -62,3 +62,17 @@ def test_espec_equality():
 		espec.EncryptedFrame("237DA26C65073F42", "33F13F18", espec.RawFrame()) ==
 		espec.EncryptedFrame("237DA26C65073F42", "33F13F18", espec.RawFrame())
 	)
+
+	assert espec.EncodingSpec("n") == espec.EncodingSpec("n")
+	assert espec.EncodingSpec("n") != espec.EncodingSpec("z")
+
+	assert espec.EncodingSpec("z") == espec.EncodingSpec("z")
+	assert espec.EncodingSpec("z:9") == espec.EncodingSpec("z")
+	assert espec.EncodingSpec("z:{9,15}") == espec.EncodingSpec("z")
+	assert espec.EncodingSpec("z:9") != espec.EncodingSpec("z:10")
+	assert espec.EncodingSpec("z:9") != espec.EncodingSpec("z:{9,mpq}")
+
+	assert (
+		espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}") ==
+		espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}")
+	)
