@@ -53,3 +53,12 @@ def test_espec_encrypted_zip():
 	assert frame.key == "237DA26C65073F42"
 	assert frame.nonce == "33F13F18"
 	assert isinstance(frame.subframe, espec.ZipFrame)
+
+
+def test_espec_equality():
+	assert espec.RawFrame() == espec.RawFrame()
+	assert espec.ZipFrame(9, 15) == espec.ZipFrame(9, 15)
+	assert (
+		espec.EncryptedFrame("237DA26C65073F42", "33F13F18", espec.RawFrame()) ==
+		espec.EncryptedFrame("237DA26C65073F42", "33F13F18", espec.RawFrame())
+	)

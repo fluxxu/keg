@@ -88,11 +88,24 @@ class EncryptedFrame(Frame):
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key} {self.nonce}>"
 
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return False
+
+		return (
+			other.key == self.key and
+			other.nonce == self.nonce and
+			other.subframe == self.subframe
+		)
+
 
 class RawFrame(Frame):
 	@classmethod
 	def from_node(cls, node):
 		return cls()
+
+	def __eq__(self, other):
+		return isinstance(other, self.__class__)
 
 
 class ZipFrame(Frame):
@@ -132,6 +145,11 @@ class ZipFrame(Frame):
 	def __init__(self, level: int, bits: int) -> None:
 		self.level = level
 		self.bits = bits
+
+	def __eq__(self, other):
+		if not isinstance(other, self.__class__):
+			return False
+		return other.level == self.level and other.bits == self.bits
 
 
 def get_frame_for_node(node) -> Frame:
