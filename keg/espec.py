@@ -142,7 +142,7 @@ class ZipFrame(Frame):
 
 		return cls(level, bits)
 
-	def __init__(self, level: int, bits: int) -> None:
+	def __init__(self, level: int=DEFAULT_LEVEL, bits: int=DEFAULT_BITS) -> None:
 		self.level = level
 		self.bits = bits
 
