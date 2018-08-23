@@ -72,9 +72,42 @@ class RawFrame(Frame):
 
 
 class ZipFrame(Frame):
+	DEFAULT_LEVEL = 9
+	DEFAULT_BITS = 15
+
 	@classmethod
 	def from_node(cls, node):
-		return cls()
+		if node.children[1].text == "":
+			level = cls.DEFAULT_LEVEL
+			bits = cls.DEFAULT_BITS
+		else:
+			args_node = node.children[1].children[0].children[1]
+			if args_node.text.isdigit():
+				level = int(args_node.text)
+				bits = cls.DEFAULT_BITS
+			else:
+				level_and_bits_node = args_node.children[0]
+
+				# <Node called "zip_level_and_bits" matching "{6,mpq}">
+				# 	<Node called "BEGIN" matching "{">
+				# 	<RegexNode called "NUMBER" matching "6">
+				# 	<Node called "COMMA" matching ",">
+				# 	<Node called "zip_bits" matching "mpq">
+				# 		<Node called "mpq" matching "mpq">
+				# 	<Node called "END" matching "}">
+
+				level = int(level_and_bits_node.children[1].text)
+				bits_node = level_and_bits_node.children[3]
+				if bits_node.text == "mpq":
+					bits = 0
+				else:
+					bits = int(bits_node.text)
+
+		return cls(level, bits)
+
+	def __init__(self, level: int, bits: int) -> None:
+		self.level = level
+		self.bits = bits
 
 
 class EncodingSpec:
