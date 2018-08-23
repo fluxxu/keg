@@ -10,7 +10,7 @@ def test_espec_grammar():
 	specs = data.splitlines()
 
 	for spec in specs:
-		espec.GRAMMAR.parse(spec)
+		espec.EncodingSpec(spec)
 
 
 def test_espec_zip_defaults():
