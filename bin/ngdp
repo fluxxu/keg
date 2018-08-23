@@ -105,6 +105,9 @@ class App:
 				writer.writerow(row)
 			return ret.getvalue()
 
+		if headers is None:
+			headers = []
+
 		return tabulate(table, headers=headers, tablefmt=self.table_format)
 
 	def _download(self, message: str, iterable: Set[str], callback):
