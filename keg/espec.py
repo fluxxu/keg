@@ -110,20 +110,25 @@ class ZipFrame(Frame):
 		self.bits = bits
 
 
+def get_frame_for_node(node) -> Frame:
+	cls: Type[Frame]
+	if node.expr_name in ("data_raw", "flag_raw"):
+		cls = RawFrame
+	elif node.expr_name == "data_zipped":
+		cls = ZipFrame
+	elif node.expr_name == "data_encrypted":
+		cls = EncryptedFrame
+	elif node.expr_name == "data_block":
+		cls = BlockTableFrame
+	else:
+		raise ValueError(node.expr_name)
+
+	return cls.from_node(node)  # type: ignore
+
+
 class EncodingSpec:
 	def __init__(self, spec: str) -> None:
 		self.spec = spec
 		self.nodes = GRAMMAR.parse(spec)
 		top_level_node = self.nodes.children[0]
-
-		cls: Type[Frame]
-		if top_level_node.expr_name == "data_raw":
-			cls = RawFrame
-		elif top_level_node.expr_name == "data_zipped":
-			cls = ZipFrame
-		elif top_level_node.expr_name == "data_encrypted":
-			cls = EncryptedFrame
-		elif top_level_node.expr_name == "data_block":
-			cls = BlockTableFrame
-
-		self.top_level_block = cls.from_node(top_level_node)
+		self.top_level_block = get_frame_for_node(top_level_node)
