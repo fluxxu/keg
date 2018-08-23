@@ -62,7 +62,31 @@ class BlockTableFrame(Frame):
 class EncryptedFrame(Frame):
 	@classmethod
 	def from_node(cls, node):
-		return cls()
+		args_node = node.children[2]
+
+		# <Node called "encryption_args" matching "{A6D4CFE470214878,FD4466FC,n}">
+		# 	<Node called "BEGIN" matching "{">
+		# 	<RegexNode called "HEX_NUMBER" matching "A6D4CFE470214878">
+		# 	<Node called "COMMA" matching ",">
+		# 	<RegexNode called "HEX_NUMBER" matching "FD4466FC">
+		# 	<Node called "COMMA" matching ",">
+		# 	<Node called "espec" matching "n">
+		# 		<Node called "flag_raw" matching "n">
+		# 	<Node called "END" matching "}">
+
+		key = args_node.children[1].text
+		nonce = args_node.children[3].text
+		subframe = get_frame_for_node(args_node.children[5].children[0])
+
+		return cls(key, nonce, subframe)
+
+	def __init__(self, key: str, nonce: str, subframe: Frame) -> None:
+		self.key = key
+		self.nonce = nonce
+		self.subframe = subframe
+
+	def __repr__(self):
+		return f"<{self.__class__.__name__}: {self.key} {self.nonce}>"
 
 
 class RawFrame(Frame):
