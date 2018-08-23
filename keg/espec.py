@@ -172,5 +172,4 @@ class EncodingSpec:
 	def __init__(self, spec: str) -> None:
 		self.spec = spec
 		self.nodes = GRAMMAR.parse(spec)
-		top_level_node = self.nodes.children[0]
-		self.top_level_block = get_frame_for_node(top_level_node)
+		self.frame = get_frame_for_node(self.nodes.children[0])

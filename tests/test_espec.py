@@ -15,7 +15,7 @@ def test_espec_grammar():
 
 def test_espec_zip_defaults():
 	spec = espec.EncodingSpec("z")
-	frame = spec.top_level_block
+	frame = spec.frame
 	assert isinstance(frame, espec.ZipFrame)
 	assert frame.level == espec.ZipFrame.DEFAULT_LEVEL
 	assert frame.bits == espec.ZipFrame.DEFAULT_BITS
@@ -23,7 +23,7 @@ def test_espec_zip_defaults():
 
 def test_espec_zip_default_bits():
 	spec = espec.EncodingSpec("z:6")
-	frame = spec.top_level_block
+	frame = spec.frame
 	assert isinstance(frame, espec.ZipFrame)
 	assert frame.level == 6
 	assert frame.bits == espec.ZipFrame.DEFAULT_BITS
@@ -31,7 +31,7 @@ def test_espec_zip_default_bits():
 
 def test_espec_zip_mpq():
 	spec = espec.EncodingSpec("z:{6,mpq}")
-	frame = spec.top_level_block
+	frame = spec.frame
 	assert isinstance(frame, espec.ZipFrame)
 	assert frame.level == 6
 	assert frame.bits == 0
@@ -39,7 +39,7 @@ def test_espec_zip_mpq():
 
 def test_espec_encrypted_raw():
 	spec = espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}")
-	frame = spec.top_level_block
+	frame = spec.frame
 	assert isinstance(frame, espec.EncryptedFrame)
 	assert frame.key == "A6D4CFE470214878"
 	assert frame.nonce == "FD4466FC"
@@ -48,7 +48,7 @@ def test_espec_encrypted_raw():
 
 def test_espec_encrypted_zip():
 	spec = espec.EncodingSpec("e:{237DA26C65073F42,33F13F18,z}")
-	frame = spec.top_level_block
+	frame = spec.frame
 	assert isinstance(frame, espec.EncryptedFrame)
 	assert frame.key == "237DA26C65073F42"
 	assert frame.nonce == "33F13F18"
