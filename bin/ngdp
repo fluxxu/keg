@@ -444,7 +444,7 @@ class App:
 			if encoding_file:
 				# Download loose files
 				bar.set_description_str("Parsing encoding file")
-				for key in encoding_file.encoding_keys:
+				for key, spec in encoding_file.encoding_keys:
 					if not archive_group.has_file(key) and not cdn.local_cdn.has_data(key):
 						loose_files_to_fetch.add(key)
 
@@ -1137,9 +1137,7 @@ def parse_encoding(ctx, paths):
 		with open(path, "rb") as f:
 			encoding_file = EncodingFile(f, "", "", verify=False)
 
-		keys = list(encoding_file.encoding_keys)
-		click.echo(f"{len(keys)} encoding keys")
-
+		click.echo(ctx.obj.tabulate(encoding_file.encoding_keys))
 		click.echo(ctx.obj.tabulate(encoding_file.content_keys))
 
 		if encoding_file.specs:

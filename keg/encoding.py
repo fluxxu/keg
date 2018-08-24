@@ -14,7 +14,7 @@ class EncodingFile:
 		self.content_key = content_key
 		self.encoded_key = encoded_key
 
-		self._encoding_keys: List[str] = []
+		self._encoding_keys: List[Tuple[str, str]] = []
 		self._content_keys: Dict[str, List[str]] = {}
 		if isinstance(data, bytes):
 			decoded_data = blte.loads(data, encoded_key, verify=verify)
@@ -66,7 +66,7 @@ class EncodingFile:
 		))
 
 	@property
-	def encoding_keys(self) -> Iterable[str]:
+	def encoding_keys(self) -> Iterable[Tuple[str, str]]:
 		if self._encoding_keys:
 			yield from self._encoding_keys
 			return
@@ -84,7 +84,7 @@ class EncodingFile:
 					break
 				key = hexlify(page[ofs:ofs + self.encoding_hash_size]).decode()
 				self._encoding_keys.append(key)
-				yield key
+				yield key, self.specs[espec_index]
 				ofs += self.encoding_hash_size + 9
 
 	@property
