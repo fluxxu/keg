@@ -1146,14 +1146,17 @@ def parse_encoding(ctx, paths):
 
 		encoding_file = EncodingFile(data, "", verify=False)
 
-		click.echo(ctx.obj.tabulate(encoding_file.encoding_keys))
-		click.echo(ctx.obj.tabulate(encoding_file.content_keys))
+		click.echo(ctx.obj.tabulate(
+			encoding_file.encoding_keys,
+			headers=("Encoded key", "Encoding spec")
+		))
 
-		if encoding_file.specs:
-			click.echo(ctx.obj.tabulate(
-				((spec,) for spec in encoding_file.specs),
-				headers=("Encoding specs",)
-			))
+		content_keys = [(row[0], *row[1]) for row in encoding_file.content_keys]
+		# Handle scenario with more than 1 content key
+		extra_columns = max(len(r) for r in content_keys) - 2
+		headers = ["Content key", "Encoded key"] + ["Encoded key (alt.)"] * extra_columns
+
+		click.echo(ctx.obj.tabulate(content_keys, headers=headers))
 
 
 @main.command("extract-archive")
