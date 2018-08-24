@@ -893,6 +893,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 
 	prev_filename, prev_key = "", ""
 	bar = tqdm(unit="file", ncols=0, leave=False, total=len(entries))
+	errors = 0
 	for filename, key, size in entries:
 		bar.update()
 		if filename == prev_filename:
@@ -915,8 +916,6 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 			tqdm.write(f"WARNING: Cannot find {key} ({filename}). Skipping.", sys.stderr)
 			continue
 
-		tqdm.write(file_path)
-
 		dirname = os.path.dirname(file_path)
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
@@ -927,9 +926,14 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 				with open(file_path, "wb") as f:
 					decoder.decode_and_write(f)
 		elif archive_group.has_file(encoding_key):
-			data = archive_group.get_file_by_key(encoding_key)
-			with open(file_path, "wb") as f:
-				f.write(data)
+			try:
+				data = archive_group.get_file_by_key(encoding_key)
+			except NetworkError as e:
+				errors += 1
+				tqdm.write(f"ERROR: {file_path} -- {e} (ekey={encoding_key}, ckey={key})")
+			else:
+				with open(file_path, "wb") as f:
+					f.write(data)
 		else:
 			raise click.ClickException(
 				f"Cannot install {file_path}: Missing data for {encoding_key}. "
@@ -937,6 +941,10 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 			)
 
 	bar.close()
+
+	if errors:
+		tqdm.write("{errors} files could not be written.")
+		exit(1)
 
 
 @main.command("log")
