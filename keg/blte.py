@@ -190,8 +190,6 @@ class BLTEEncoder:
 		subheader = BytesIO()
 		subheader.write(b"\x0f")
 		subheader.write(struct.pack(">i", num_blocks)[1:])
-		import tabulate
-		print(tabulate.tabulate((k[0], k[1], hexlify(k[2])) for k in block_table))
 		for block_info in block_table:
 			subheader.write(struct.pack(">ii16s", *block_info))
 
