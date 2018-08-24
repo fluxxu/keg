@@ -1,9 +1,11 @@
 import struct
 import zlib
 from binascii import hexlify
+from hashlib import md5
 from io import BytesIO
 from typing import IO, Iterable, List, Tuple
 
+from . import espec
 from .exceptions import BLTEError
 from .utils import verify_data
 
@@ -88,11 +90,11 @@ class BLTEDecoder:
 	def parse_block_info(self, fp: IO) -> None:
 		num_blocks, = struct.unpack(">i", b"\x00" + fp.read(3))
 		for i in range(num_blocks):
-			encoded_size, decoded_size, md5 = struct.unpack(
+			encoded_size, decoded_size, digest = struct.unpack(
 				">ii16s", fp.read(4 + 4 + 16)
 			)
 			self.block_table.append(
-				(encoded_size, decoded_size, hexlify(md5).decode())
+				(encoded_size, decoded_size, hexlify(digest).decode())
 			)
 
 	@property
@@ -116,9 +118,9 @@ class BLTEDecoder:
 			yield data
 			return
 
-		for encoded_size, decoded_size, md5 in self.block_table:
+		for encoded_size, decoded_size, digest in self.block_table:
 			data = self.fp.read(encoded_size)
-			verify_data("BLTE block", data, md5, self.verify)
+			verify_data("BLTE block", data, digest, self.verify)
 			self._block_index += 1
 			yield data
 
@@ -132,11 +134,79 @@ class BLTEDecoder:
 		return ret
 
 
-def load(fp: IO, key: str, verify: bool=False):
+def load(fp: IO, key: str, verify: bool=False) -> bytes:
 	decoder = BLTEDecoder(fp, key, verify=verify)
 	return b"".join(decoder.blocks)
 
 
-def loads(data: bytes, key: str, verify: bool=False):
+def loads(data: bytes, key: str, verify: bool=False) -> bytes:
 	fp = BytesIO(data)
 	return load(fp, key, verify=verify)
+
+
+class BLTEEncoder:
+	def __init__(self, spec: espec.EncodingSpec) -> None:
+		self.spec = spec
+
+	def write(self, data: IO, fp: IO) -> Tuple[int, str]:
+		encoded_data = BytesIO()
+		num_blocks = 0
+		block_table = []
+
+		if isinstance(self.spec.frame, espec.BlockTableFrame):
+			for block_size, repeat, subframe in self.spec.frame.frame_info:
+				if isinstance(subframe, espec.RawFrame):
+					callback = lambda d: b"N" + d  # noqa
+				elif isinstance(subframe, espec.ZipFrame):
+					def callback(d: bytes) -> bytes:
+						compressor = zlib.compressobj(level=subframe.level, wbits=subframe.bits)
+						return b"Z" + compressor.compress(d) + compressor.flush()
+				else:
+					raise NotImplementedError
+
+				if repeat == -1:
+					while True:
+						data_block = data.read(block_size)
+						if not data_block:
+							break
+						num_blocks += 1
+						encoded_block = callback(data_block)
+						digest = md5(encoded_block).digest()
+						encoded_data.write(encoded_block)
+						block_table.append((len(encoded_block), len(data_block), digest))
+				else:
+					for i in range(repeat):
+						num_blocks += 1
+						data_block = data.read(block_size)
+						encoded_block = callback(data_block)
+						digest = md5(encoded_block).digest()
+						encoded_data.write(encoded_block)
+						block_table.append((len(encoded_block), len(data_block), digest))
+		else:
+			raise NotImplementedError
+
+		header = BytesIO()
+		header.write(b"BLTE")
+		subheader = BytesIO()
+		subheader.write(b"\x0f")
+		subheader.write(struct.pack(">i", num_blocks)[1:])
+		import tabulate
+		print(tabulate.tabulate((k[0], k[1], hexlify(k[2])) for k in block_table))
+		for block_info in block_table:
+			subheader.write(struct.pack(">ii16s", *block_info))
+
+		header_size = len(subheader.getvalue()) + 8
+		header.write(struct.pack(">i", header_size))
+		header.write(subheader.getvalue())
+
+		header_data = header.getvalue()
+		blte_key = md5(header_data).hexdigest()
+		data_out = header_data + encoded_data.getvalue()
+
+		return fp.write(header_data + encoded_data.getvalue()), blte_key
+
+
+def dump(data: bytes, fp: IO, spec: espec.EncodingSpec) -> Tuple[int, str]:
+	encoder = BLTEEncoder(spec)
+	written, key = encoder.write(BytesIO(data), fp)
+	return written, key
