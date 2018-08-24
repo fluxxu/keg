@@ -1,31 +1,24 @@
 import struct
 from binascii import hexlify
 from io import BytesIO
-from typing import IO, Dict, Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple
 
-from . import blte
 from .utils import verify_data
 
 
 class EncodingFile:
 	def __init__(
-		self, data: Union[IO, bytes], content_key: str, encoded_key: str, verify: bool=False
+		self, data: bytes, content_key: str, verify: bool=False
 	) -> None:
 		self.content_key = content_key
-		self.encoded_key = encoded_key
-
 		self._encoding_keys: Dict[str, str] = {}
 		self._content_keys: Dict[str, List[str]] = {}
-		if isinstance(data, bytes):
-			decoded_data = blte.loads(data, encoded_key, verify=verify)
-		else:
-			decoded_data = blte.load(data, encoded_key, verify=verify)
 
-		verify_data("encoding file", decoded_data, content_key, verify)
-		self.parse_header(decoded_data)
+		verify_data("encoding file", data, content_key, verify)
+		self.parse_header(data)
 
 	def __repr__(self) -> str:
-		return f"<{self.__class__.__name__}: {self.content_key} {self.encoded_key}>"
+		return f"<{self.__class__.__name__}: {self.content_key}>"
 
 	def parse_header(self, data: bytes) -> None:
 		header_size = 22

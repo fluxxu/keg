@@ -1,5 +1,6 @@
 from typing import Iterable, Tuple, Union
 
+from . import blte
 from .encoding import EncodingFile
 from .installfile import InstallFile
 from .patch import PatchEntry
@@ -36,8 +37,10 @@ class BuildConfig(BaseConfig):
 		if not ekey:
 			return None
 
-		data = cdn.download_data(ekey, verify=verify).read()
-		return EncodingFile(data, ckey, ekey, verify=verify)
+		with cdn.download_data(ekey, verify=verify) as fp:
+			decoded_data = blte.load(fp, ekey, verify=verify)
+
+		return EncodingFile(decoded_data, ckey, verify=verify)
 
 	def get_install_file(self, cdn, verify: bool=False) -> Union[InstallFile, None]:
 		if not self.install:

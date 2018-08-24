@@ -1138,12 +1138,13 @@ def parse_index(ctx, key_or_path):
 @click.pass_context
 def parse_encoding(ctx, paths):
 	for path in paths:
-		key = os.path.basename(os.path.splitext(path)[0])
-		if not looks_like_md5(key):
-			click.echo(f"WARNING: Invalid key name {repr(key)}", file=sys.stderr)
-
 		with open(path, "rb") as f:
-			encoding_file = EncodingFile(f, "", "", verify=False)
+			data = f.read()
+
+		if data[:4] == b"BLTE":
+			data = blte.loads(data, "", verify=False)
+
+		encoding_file = EncodingFile(data, "", verify=False)
 
 		click.echo(ctx.obj.tabulate(encoding_file.encoding_keys))
 		click.echo(ctx.obj.tabulate(encoding_file.content_keys))
