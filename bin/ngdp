@@ -1138,10 +1138,9 @@ def parse_encoding(ctx, paths):
 			encoding_file = EncodingFile(f, "", "", verify=False)
 
 		keys = list(encoding_file.encoding_keys)
-		# click.echo(f"{len(keys)} encoding keys")
+		click.echo(f"{len(keys)} encoding keys")
 
-		keys = list(encoding_file.content_keys)
-		# click.echo(f"{len(keys)} content keys")
+		click.echo(ctx.obj.tabulate(encoding_file.content_keys))
 
 		if encoding_file.specs:
 			click.echo(ctx.obj.tabulate(
