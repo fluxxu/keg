@@ -1213,7 +1213,9 @@ def reconstruct_archive(ctx, archive_key, fragment_paths):
 	# Sort items by offset, so they get written serially without seeking
 	items.sort(key=lambda k: k[2])
 
-	with open(archive_key + ".keg_temp", "wb") as archive_file:
+	errors = 0
+	temp_path = f"{archive_key}.keg_temp"
+	with open(temp_path, "wb") as archive_file:
 		bar = tqdm(unit="fragment", ncols=0, leave=False, total=len(items))
 		for key, size, offset in items:
 			bar.update()
@@ -1234,13 +1236,21 @@ def reconstruct_archive(ctx, archive_key, fragment_paths):
 					archive_file.write(f.read(size))
 				break
 			else:
-				raise click.ClickException(f"Could not find {key} in fragment paths.")
-
-		bar.set_description("Finalizing archive...")
-
-	os.rename(archive_key + ".keg_temp", archive_key)
+				errors += 1
+				tqdm.write(f"ERROR: Could not find fragment: {key}", sys.stderr)
+				# Write nulls to skip ahead
+				archive_file.write(b"\0" * size)
 	bar.close()
-	click.echo(f"Written to {os.path.abspath(archive_key)}")
+
+	if errors:
+		click.echo(
+			f"Reconstruction failed: {errors}/{len(items)} bad or missing fragments.",
+			sys.stderr
+		)
+		os.remove(temp_path)
+	else:
+		os.rename(temp_path, archive_key)
+		click.echo(f"Written to {os.path.abspath(archive_key)}")
 
 
 if __name__ == "__main__":
