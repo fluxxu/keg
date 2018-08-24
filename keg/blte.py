@@ -201,12 +201,12 @@ class BLTEEncoder:
 
 		header_data = header.getvalue()
 		blte_key = md5(header_data).hexdigest()
-		data_out = header_data + encoded_data.getvalue()
-
 		return fp.write(header_data + encoded_data.getvalue()), blte_key
 
 
 def dump(data: bytes, fp: IO, spec: espec.EncodingSpec) -> Tuple[int, str]:
+	if isinstance(spec, str):
+		spec = espec.EncodingSpec(spec)
 	encoder = BLTEEncoder(spec)
 	written, key = encoder.write(BytesIO(data), fp)
 	return written, key
