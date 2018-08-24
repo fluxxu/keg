@@ -5,6 +5,7 @@ import click
 from tabulate import tabulate
 
 from keg import blte
+from keg.espec import EncodingSpec
 from keg.exceptions import IntegrityVerificationError
 
 
@@ -37,6 +38,21 @@ def dump(paths, verify):
 			click.echo(tabulate(dec.block_table, headers=(
 				"Encoded size", "Decoded size", "Key"
 			)))
+
+
+@main.command("encode")
+@click.argument("spec")
+@click.argument("paths", nargs=-1)
+def encode(spec, paths):
+	espec = EncodingSpec(spec)
+
+	for i, path in enumerate(paths):
+		temp_path = f"{i}.keg_temp"
+		with open(path, "rb") as f, open(temp_path, "wb") as of:
+			data = f.read()
+			size, key = blte.dump(data, of, espec)
+		click.echo(f"{path} => {key} ({size} bytes) ")
+		os.rename(temp_path, key)
 
 
 @main.command("fix")
