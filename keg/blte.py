@@ -210,3 +210,9 @@ def dump(data: bytes, fp: IO, spec: espec.EncodingSpec) -> Tuple[int, str]:
 	encoder = BLTEEncoder(spec)
 	written, key = encoder.write(BytesIO(data), fp)
 	return written, key
+
+
+def dumps(data: bytes, spec: espec.EncodingSpec) -> Tuple[bytes, int, str]:
+	buffer = BytesIO()
+	written, key = dump(data, buffer, spec)
+	return buffer.getvalue(), written, key
