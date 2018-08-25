@@ -6,11 +6,10 @@ import re
 from datetime import datetime
 from glob import iglob
 from io import BytesIO, StringIO
-from typing import List, Set
+from typing import Set
 from urllib.parse import urlparse
 
 import click
-import toml
 from humanize import naturalsize
 from tabulate import tabulate
 from tqdm import tqdm
@@ -18,14 +17,12 @@ from tqdm import tqdm
 from keg import CacheableHttpRemote, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper, LocalCDN
+from keg.core.config import KegConfig
 from keg.core.db import KegDB
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache, Versions
 from keg.utils import partition_hash, verify_data
-
-
-DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
 
 
 def looks_like_md5(s: str) -> bool:
@@ -37,9 +34,7 @@ class RemoteParam(click.ParamType):
 
 	def convert(self, value, param, ctx):
 		if "://" not in value:
-			value = ctx.obj.config["keg"].get(
-				"default-remote-prefix", DEFAULT_REMOTE_PREFIX
-			) + value
+			value = ctx.obj.config.default_remote_prefix + value
 
 		return value
 
@@ -50,33 +45,17 @@ class App:
 		self.objects_path = os.path.join(self.ngdp_path, "objects")
 		self.fragments_path = os.path.join(self.ngdp_path, "fragments")
 		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
+		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
 		self.db_path = os.path.join(self.ngdp_path, "keg.db")
 		self.force_cdn = ""
-		self.init_config()
+
+		self.config = KegConfig(self.config_path)
 		self.local_cdn = LocalCDN(self.objects_path, self.fragments_path)
 
 		if os.path.exists(self.ngdp_path):
 			self.db = KegDB(self.db_path)
 		else:
 			self.db = None
-
-	@property
-	def preferred_cdns(self) -> List[str]:
-		return self.config["keg"].get("preferred_cdns", [])
-
-	@property
-	def remotes(self) -> List[str]:
-		return self.config.get("remotes", [])
-
-	@property
-	def verify(self) -> bool:
-		return self.config["keg"].get("verify-integrity", True)
-
-	@property
-	def fetchable_remotes(self) -> List[str]:
-		for remote in self.remotes:
-			if self.config["remotes"][remote].get("default-fetch"):
-				yield remote
 
 	def tabulate(self, table, headers=None) -> str:
 		if isinstance(table, psv.PSVFile):
@@ -119,20 +98,6 @@ class App:
 
 		print(message, "Done.")
 
-	def init_config(self):
-		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
-
-		if os.path.exists(self.config_path):
-			with open(self.config_path, "r") as f:
-				self.config = toml.load(f)
-			assert "keg" in self.config
-			assert self.config["keg"].get("config_version") == 1
-
-			assert "ngdp" in self.config
-			assert self.config["ngdp"].get("hash_function") == "md5"
-		else:
-			self.config = {}
-
 	def init_repo(self):
 		if not os.path.exists(self.ngdp_path):
 			os.makedirs(self.ngdp_path)
@@ -140,24 +105,9 @@ class App:
 		else:
 			click.echo(f"Reinitialized in {self.ngdp_path}")
 
-		if not os.path.exists(self.config_path):
-			self.config["keg"] = {
-				"config_version": 1,
-				"preferred_cdns": [],
-				"default-remote-prefix": DEFAULT_REMOTE_PREFIX,
-				"verify-integrity": True,
-			}
-			self.config["ngdp"] = {
-				"hash_function": "md5",
-			}
-			self.save_config()
-
+		self.config.initialize()
 		self.db = KegDB(self.db_path)
 		self.db.create_tables()
-
-	def save_config(self):
-		with open(self.config_path, "w") as f:
-			toml.dump(self.config, f)
 
 	def _choose_cdn(self, cdns):
 		if self.force_cdn:
@@ -665,8 +615,9 @@ def add_object(ctx, paths, type, remote):
 @main.group()
 @click.pass_context
 def remote(ctx):
-	if "remotes" not in ctx.obj.config:
-		ctx.obj.config["remotes"] = {}
+	# Ensure the remotes key is in the config
+	if "remotes" not in ctx.obj.config.config:
+		ctx.obj.config.config["remotes"] = {}
 
 
 @remote.command("add")
@@ -676,14 +627,10 @@ def remote(ctx):
 @click.pass_context
 def add_remote(ctx, remotes, default_fetch, writeable):
 	for remote in remotes:
-		if remote in ctx.obj.config["remotes"]:
+		if remote in ctx.obj.config.remotes:
 			raise click.ClickException(f"Remote {remote} already exists")
 
-		ctx.obj.config["remotes"][remote] = {
-			"default-fetch": default_fetch,
-			"writeable": writeable,
-		}
-		ctx.obj.save_config()
+		ctx.obj.config.add_remote(remote, default_fetch, writeable)
 
 
 @remote.command("rm")
@@ -692,11 +639,9 @@ def add_remote(ctx, remotes, default_fetch, writeable):
 def remove_remote(ctx, remotes):
 	for remote in remotes:
 		try:
-			del ctx.obj.config["remotes"][remote]
+			ctx.obj.config.remove_remote(remote)
 		except KeyError:
 			raise click.ClickException(f"No such remote: {remote}")
-
-		ctx.obj.save_config()
 
 
 @remote.command("list")
