@@ -109,8 +109,9 @@ class RemoteCDN(BaseCDN):
 
 
 class LocalCDN(BaseCDN):
-	def __init__(self, base_dir: str) -> None:
+	def __init__(self, base_dir: str, fragments_dir: str) -> None:
 		self.base_dir = base_dir
+		self.fragments_dir = fragments_dir
 
 	def get_full_path(self, path: str) -> str:
 		return os.path.join(self.base_dir, path.lstrip("/"))
@@ -153,11 +154,16 @@ class LocalCDN(BaseCDN):
 
 class CacheableCDNWrapper(BaseCDN):
 	def __init__(
-		self, base_dir: str, server: str, path: str, config_path: str=DEFAULT_CONFIG_PATH
+		self,
+		base_dir: str,
+		server: str,
+		path: str,
+		fragments_path: str,
+		config_path: str=DEFAULT_CONFIG_PATH
 	) -> None:
 		if not os.path.exists(base_dir):
 			os.makedirs(base_dir)
-		self.local_cdn = LocalCDN(base_dir)
+		self.local_cdn = LocalCDN(base_dir, fragments_path)
 		self.remote_cdn = RemoteCDN(server, path, config_path)
 
 	def get_item(self, path: str) -> IO:

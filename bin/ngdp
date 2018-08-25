@@ -58,11 +58,12 @@ class App:
 	def __init__(self, ngdp_dir: str) -> None:
 		self.ngdp_path = os.path.abspath(ngdp_dir)
 		self.objects_path = os.path.join(self.ngdp_path, "objects")
+		self.fragments_path = os.path.join(self.ngdp_path, "fragments")
 		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
 		self.db_path = os.path.join(self.ngdp_path, "keg.db")
 		self.force_cdn = ""
 		self.init_config()
-		self.local_cdn = LocalCDN(self.objects_path)
+		self.local_cdn = LocalCDN(self.objects_path, self.fragments_path)
 
 		if os.path.exists(self.ngdp_path):
 			self.db = sqlite3.connect(self.db_path)
@@ -227,6 +228,7 @@ class App:
 				server=f"{url.scheme}://{url.netloc}",
 				path=url.path,
 				config_path=DEFAULT_CONFIG_PATH,
+				fragments_path=self.fragments_path,
 			)
 
 		if not cdns:
@@ -252,6 +254,7 @@ class App:
 			server=cdn.all_servers[0],
 			path=cdn.path,
 			config_path=cdn.config_path,
+			fragments_path=self.fragments_path,
 		)
 
 	def find_version(self, version: str, remote: str) -> Tuple[str, str]:
