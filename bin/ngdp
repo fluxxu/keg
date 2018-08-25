@@ -1151,10 +1151,11 @@ def parse_encoding(ctx, paths):
 			headers=("Encoded key", "Encoding spec")
 		))
 
-		content_keys = [(row[0], *row[1]) for row in encoding_file.content_keys]
+		content_keys = [(row[0], row[1][1], *row[1][0]) for row in encoding_file.content_keys]
 		# Handle scenario with more than 1 content key
 		extra_columns = max(len(r) for r in content_keys) - 2
-		headers = ["Content key", "Encoded key"] + ["Encoded key (alt.)"] * extra_columns
+		headers = ["Content key", "Size", "Encoded key"]
+		headers += ["Encoded key (alt.)"] * extra_columns
 
 		click.echo(ctx.obj.tabulate(content_keys, headers=headers))
 

@@ -12,7 +12,7 @@ class EncodingFile:
 	) -> None:
 		self.content_key = content_key
 		self._encoding_keys: Dict[str, str] = {}
-		self._content_keys: Dict[str, List[str]] = {}
+		self._content_keys: Dict[str, Tuple[List[str], int]] = {}
 
 		verify_data("encoding file", data, content_key, verify)
 		self.parse_header(data)
@@ -81,7 +81,7 @@ class EncodingFile:
 				ofs += self.encoding_hash_size + 9
 
 	@property
-	def content_keys(self) -> Iterable[Tuple[str, List[str]]]:
+	def content_keys(self) -> Iterable[Tuple[str, Tuple[List[str], int]]]:
 		if self._content_keys:
 			yield from self._content_keys.items()
 			return
@@ -107,8 +107,8 @@ class EncodingFile:
 					keys.append(hexlify(page[ofs:ofs + self.encoding_hash_size]).decode())
 					ofs += self.encoding_hash_size
 
-				self._content_keys[content_key] = keys
-				yield content_key, keys
+				self._content_keys[content_key] = (keys, file_size)
+				yield content_key, (keys, file_size)
 
 	def preload_content(self) -> None:
 		if not self._content_keys:
@@ -130,4 +130,4 @@ class EncodingFile:
 
 	def find_by_content_key(self, key: str) -> str:
 		self.preload_content()
-		return self._content_keys[key][0]
+		return self._content_keys[key][0][0]
