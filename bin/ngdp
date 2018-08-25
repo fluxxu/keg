@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from glob import iglob
 from io import BytesIO, StringIO
-from typing import List, Set, Tuple
+from typing import List, Set
 from urllib.parse import urlparse
 
 import click
@@ -30,16 +30,6 @@ DEFAULT_REMOTE_PREFIX = "http://us.patch.battle.net:1119/"
 
 def looks_like_md5(s: str) -> bool:
 	return bool(re.match(r"[0-9a-f]{32}", s))
-
-
-class AmbiguousVersionError(click.ClickException):
-	def __init__(self, msg, hints):
-		super().__init__(msg)
-		self._hints = hints
-
-	def format_message(self):
-		hints = "\n    ".join([""] + self._hints)
-		return self.message + "\n\nThe candidates are:" + hints
 
 
 class RemoteParam(click.ParamType):
@@ -208,27 +198,6 @@ class App:
 			config_path=cdn.config_path,
 			fragments_path=self.fragments_path,
 		)
-
-	def find_version(self, version: str, remote: str) -> Tuple[str, str]:
-		cursor = self.db.cursor()
-		cursor.execute("""
-			SELECT distinct(BuildConfig), CDNConfig
-			FROM versions
-			WHERE
-				REMOTE = ? AND
-				VersionsName = ? OR BuildID = ? OR BuildConfig = ?
-			GROUP BY BuildConfig
-		""", (remote, version, version, version))
-		results = cursor.fetchall()
-		if not results:
-			raise click.ClickException(f"Version not found: {version}")
-		elif len(results) == 1:
-			return results[0]
-		else:
-			raise AmbiguousVersionError(
-				f"Version {repr(version)} is ambiguous",
-				sorted(set(k for k, _ in results))
-			)
 
 	def get_remote(self, remote: str) -> Keg:
 		return Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
@@ -559,22 +528,7 @@ def add_object(ctx, paths, type, remote):
 	if type == "loose-file":
 		click.echo("Loading known encoding files...")
 
-		cursor = ctx.obj.db.cursor()
-		if remote:
-			cursor.execute("""
-				SELECT distinct(BuildConfig), CDNConfig
-				FROM versions
-				WHERE remote = ?
-				GROUP BY BuildConfig
-			""", (remote, ))
-		else:
-			cursor.execute("""
-				SELECT distinct(BuildConfig), CDNConfig
-				FROM versions
-				GROUP BY BuildConfig
-			""")
-
-		results = cursor.fetchall()
+		results = ctx.obj.db.get_configs(remote=remote)
 
 		encodings = []
 		encoding_keys = set()
@@ -752,16 +706,7 @@ def list_remotes(ctx):
 @click.argument("remote", type=RemoteParam())
 @click.pass_context
 def inspect(ctx, remote):
-	cursor = ctx.obj.db.cursor()
-	cursor.execute("""
-		SELECT
-			distinct(BuildConfig), BuildID, VersionsName
-		FROM versions
-		WHERE
-			remote = ?
-		ORDER BY BuildID ASC
-	""", (remote,))
-	results = cursor.fetchall()
+	results = ctx.obj.db.get_versions(remote=remote)
 
 	if not results:
 		click.echo(f"No known data for {remote}")
@@ -785,7 +730,12 @@ def inspect(ctx, remote):
 @click.pass_context
 def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	# version can be a BuildName, BuildID or BuildConfig
-	build_config_key, cdn_config_key = ctx.obj.find_version(version, remote)
+	try:
+		build_config_key, cdn_config_key = ctx.obj.db.find_version(
+			remote=remote, version=version
+		)
+	except Exception as e:
+		raise click.ClickException(str(e))
 
 	click.echo(f"Checking out {build_config_key}...")
 
@@ -923,17 +873,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 @click.pass_context
 def show_log(ctx, remote, type):
 	column = f"/{type}"
-
-	cursor = ctx.obj.db.cursor()
-	cursor.execute("""
-		SELECT digest, timestamp
-		FROM "responses"
-		WHERE
-			remote = ? AND
-			path = ?
-		ORDER BY timestamp
-	""", (remote, column))
-	results = cursor.fetchall()
+	results = ctx.obj.db.get_responses(remote=remote, path=column)
 
 	state_cache = StateCache(ctx.obj.response_cache_dir)
 
