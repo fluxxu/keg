@@ -114,7 +114,11 @@ class StatefulResponse:
 		return StateCache(base_cache_dir).write(self.name, self.digest, self.content)
 
 
-class HttpBackend:
+class Remote:
+	pass
+
+
+class HttpRemote(Remote):
 	def __init__(self, remote: str) -> None:
 		self.remote = remote
 

@@ -2,14 +2,14 @@ from enum import IntEnum
 from typing import Any, List, Tuple
 
 from . import psv
-from .http import CDNs, HttpBackend, StateCache, Versions
+from .http import CDNs, HttpRemote, StateCache, Versions
 
 
 class Source(IntEnum):
 	HTTP = 1
 
 
-class Keg(HttpBackend):
+class Keg(HttpRemote):
 	def __init__(self, remote: str, cache_dir: str, cache_db) -> None:
 		super().__init__(remote)
 		self.cache_dir = cache_dir
