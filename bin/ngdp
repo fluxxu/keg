@@ -928,6 +928,11 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 				decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=ctx.obj.verify)
 				with open(file_path, "wb") as f:
 					decoder.decode_and_write(f)
+		elif cdn.local_cdn.has_fragment(encoding_key):
+			with cdn.local_cdn.get_fragment(encoding_key) as encoded_file:
+				decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=ctx.obj.verify)
+				with open(file_path, "wb") as f:
+					decoder.decode_and_write(f)
 		elif archive_group.has_file(encoding_key):
 			try:
 				data = archive_group.get_file_by_key(encoding_key)
