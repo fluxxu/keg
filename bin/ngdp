@@ -829,8 +829,9 @@ def inspect(ctx, remote):
 @click.option("--tags", multiple=True)
 @click.option("--dry-run", "--dryrun", is_flag=True)
 @click.option("--only", multiple=True)
+@click.option("--root/--no-root", default=False)
 @click.pass_context
-def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
+def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	# version can be a BuildName, BuildID or BuildConfig
 	build_config_key, cdn_config_key = ctx.obj.find_version(version, remote)
 
@@ -863,6 +864,15 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 			entry[1] == filter or
 			entry[0].startswith(dir_filter)
 		]
+
+	if root:
+		root_key = build_config.root
+		root_size = -1
+		entries.append((
+			f"{root_key}.root",
+			root_key,
+			root_size,
+		))
 
 	if dryrun:
 		table = ctx.obj.tabulate(
