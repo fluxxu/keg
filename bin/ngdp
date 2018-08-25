@@ -3,7 +3,6 @@ import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(
 import csv
 import json
 import re
-import sqlite3
 from datetime import datetime
 from glob import iglob
 from io import BytesIO, StringIO
@@ -19,6 +18,7 @@ from tqdm import tqdm
 from keg import Keg, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper, LocalCDN
+from keg.core.db import KegDB
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache, Versions
@@ -66,7 +66,7 @@ class App:
 		self.local_cdn = LocalCDN(self.objects_path, self.fragments_path)
 
 		if os.path.exists(self.ngdp_path):
-			self.db = sqlite3.connect(self.db_path)
+			self.db = KegDB(self.db_path)
 		else:
 			self.db = None
 
@@ -162,56 +162,8 @@ class App:
 			}
 			self.save_config()
 
-		self.db = sqlite3.connect(self.db_path)
-		self.db.execute("""
-			CREATE TABLE IF NOT EXISTS responses (
-				remote text,
-				path text,
-				timestamp int64,
-				digest text,
-				source int
-			)
-		""")
-
-		self.db.execute("""
-			CREATE TABLE IF NOT EXISTS blobs (
-				remote text,
-				key text,
-				row int,
-				Region text,
-				InstallBlobMD5 text,
-				GameBlobMD5 text
-			)
-		""")
-
-		self.db.execute("""
-			CREATE TABLE IF NOT EXISTS cdns (
-				remote text,
-				key text,
-				row int,
-				Name text,
-				Path text,
-				Hosts text,
-				Servers text,
-				ConfigPath text
-			)
-		""")
-
-		for table_name in ("versions", "bgdl"):
-			self.db.execute("""
-				CREATE TABLE IF NOT EXISTS "%s" (
-					remote text,
-					key text,
-					row int,
-					BuildConfig text,
-					BuildID int,
-					CDNConfig text,
-					KeyRing text,
-					ProductConfig text,
-					Region text,
-					VersionsName text
-				)
-			""" % (table_name))
+		self.db = KegDB(self.db_path)
+		self.db.create_tables()
 
 	def save_config(self):
 		with open(self.config_path, "w") as f:
