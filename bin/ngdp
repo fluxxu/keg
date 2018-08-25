@@ -15,7 +15,7 @@ from humanize import naturalsize
 from tabulate import tabulate
 from tqdm import tqdm
 
-from keg import Keg, blte, psv
+from keg import CacheableHttpRemote, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper, LocalCDN
 from keg.core.db import KegDB
@@ -199,28 +199,30 @@ class App:
 			fragments_path=self.fragments_path,
 		)
 
-	def get_remote(self, remote: str) -> Keg:
-		return Keg(remote, cache_dir=self.response_cache_dir, cache_db=self.db)
+	def get_remote(self, remote: str) -> CacheableHttpRemote:
+		return CacheableHttpRemote(
+			remote, cache_dir=self.response_cache_dir, cache_db=self.db
+		)
 
-	def fetch_stateful_data(self, keg: Keg):
+	def fetch_stateful_data(self, remote: CacheableHttpRemote):
 		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
 
 		# Look up all available CDNs and choose one to use
 		bar.set_description_str("Receiving CDN list")
 		try:
-			cdns = keg.get_cdns()
+			cdns = remote.get_cdns()
 		except NetworkError:
-			raise click.ClickException(f"NGDP repository {remote} not found")
+			raise click.ClickException(f"NGDP repository {remote.remote} not found")
 
 		cdn = self._choose_cdn(cdns)
 
 		# Find all available versions
 		bar.set_description_str("Receiving version list")
-		versions = keg.get_versions()
+		versions = remote.get_versions()
 
 		bar.set_description_str("Receiving background download metadata")
 		try:
-			keg.get_bgdl()
+			remote.get_bgdl()
 		except NetworkError:
 			# bgdl is optional
 			pass
@@ -229,14 +231,14 @@ class App:
 
 		bar.set_description_str("Receiving blobs")
 		try:
-			keg.get_blobs()
+			remote.get_blobs()
 		except NetworkError:
 			# Optional
 			pass
 		for blob_name in ("game", "install"):
 			bar.set_description_str(f"Receiving {blob_name} blob")
 			try:
-				keg.get_blob(blob_name)
+				remote.get_blob(blob_name)
 			except NetworkError:
 				# Blobs are optional
 				pass
@@ -457,8 +459,10 @@ def fetch_all(ctx, metadata_only=True):
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def force_fetch(ctx, remote, version_keys, metadata_only):
-	keg: Keg = ctx.obj.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.response_cache_dir))
+	http_remote: CacheableHttpRemote = ctx.obj.get_remote(remote)
+	cdn = ctx.obj._choose_cdn(
+		http_remote.get_cached_cdns(remote, ctx.obj.response_cache_dir)
+	)
 
 	for version_key in version_keys:
 		psvfile = StateCache(ctx.obj.response_cache_dir).read_psv("/versions", version_key)

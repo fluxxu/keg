@@ -9,7 +9,7 @@ class Source(IntEnum):
 	HTTP = 1
 
 
-class Keg(HttpRemote):
+class CacheableHttpRemote(HttpRemote):
 	def __init__(self, remote: str, cache_dir: str, cache_db) -> None:
 		super().__init__(remote)
 		self.cache_dir = cache_dir
