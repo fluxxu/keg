@@ -863,7 +863,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	bar.close()
 
 	if errors:
-		tqdm.write("{errors} files could not be written.")
+		tqdm.write(f"{errors} files could not be written.")
 		exit(1)
 
 
