@@ -16,9 +16,8 @@ from tqdm import tqdm
 
 from keg import CacheableHttpRemote, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
-from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper, LocalCDN
-from keg.core.config import KegConfig
-from keg.core.db import KegDB
+from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
+from keg.core.keg import Keg
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
 from keg.http import StateCache, Versions
@@ -34,28 +33,16 @@ class RemoteParam(click.ParamType):
 
 	def convert(self, value, param, ctx):
 		if "://" not in value:
-			value = ctx.obj.config.default_remote_prefix + value
+			value = ctx.obj.keg.config.default_remote_prefix + value
 
 		return value
 
 
 class App:
 	def __init__(self, ngdp_dir: str) -> None:
-		self.ngdp_path = os.path.abspath(ngdp_dir)
-		self.objects_path = os.path.join(self.ngdp_path, "objects")
-		self.fragments_path = os.path.join(self.ngdp_path, "fragments")
-		self.response_cache_dir = os.path.join(self.ngdp_path, "responses")
-		self.config_path = os.path.join(self.ngdp_path, "keg.conf")
-		self.db_path = os.path.join(self.ngdp_path, "keg.db")
+		self.keg = Keg(ngdp_dir)
 		self.force_cdn = ""
-
-		self.config = KegConfig(self.config_path)
-		self.local_cdn = LocalCDN(self.objects_path, self.fragments_path)
-
-		if os.path.exists(self.ngdp_path):
-			self.db = KegDB(self.db_path)
-		else:
-			self.db = None
+		self.verify = self.keg.config.verify
 
 	def tabulate(self, table, headers=None) -> str:
 		if isinstance(table, psv.PSVFile):
@@ -98,29 +85,18 @@ class App:
 
 		print(message, "Done.")
 
-	def init_repo(self):
-		if not os.path.exists(self.ngdp_path):
-			os.makedirs(self.ngdp_path)
-			click.echo(f"Initialized in {self.ngdp_path}")
-		else:
-			click.echo(f"Reinitialized in {self.ngdp_path}")
-
-		self.config.initialize()
-		self.db = KegDB(self.db_path)
-		self.db.create_tables()
-
-	def _choose_cdn(self, cdns):
+	def _choose_cdn(self, cdns) -> CacheableCDNWrapper:
 		if self.force_cdn:
 			url = urlparse(self.force_cdn)
 			if not url.scheme or not url.netloc or not url.path:
 				raise click.ClickException(f"Invalid CDN url: {self.force_cdn}")
 
 			return CacheableCDNWrapper(
-				base_dir=self.objects_path,
+				base_dir=self.keg.objects_path,
 				server=f"{url.scheme}://{url.netloc}",
 				path=url.path,
 				config_path=DEFAULT_CONFIG_PATH,
-				fragments_path=self.fragments_path,
+				fragments_path=self.keg.fragments_path,
 			)
 
 		if not cdns:
@@ -129,7 +105,7 @@ class App:
 		available_cdns = ", ".join(cdn.name for cdn in cdns)
 		cdns_lookup = {cdn.name.lower(): cdn for cdn in cdns}
 
-		for preferred_cdn in self.preferred_cdns:
+		for preferred_cdn in self.keg.config.preferred_cdns:
 			cdn_name = preferred_cdn.lower()
 			if cdn_name in cdns_lookup:
 				cdn = cdns_lookup[cdn_name]
@@ -142,16 +118,11 @@ class App:
 		assert cdn.all_servers
 
 		return CacheableCDNWrapper(
-			base_dir=self.objects_path,
+			base_dir=self.keg.objects_path,
 			server=cdn.all_servers[0],
 			path=cdn.path,
 			config_path=cdn.config_path,
-			fragments_path=self.fragments_path,
-		)
-
-	def get_remote(self, remote: str) -> CacheableHttpRemote:
-		return CacheableHttpRemote(
-			remote, cache_dir=self.response_cache_dir, cache_db=self.db
+			fragments_path=self.keg.fragments_path,
 		)
 
 	def fetch_stateful_data(self, remote: CacheableHttpRemote):
@@ -374,7 +345,10 @@ def main(ctx, ngdp_dir, cdn, table_format):
 @main.command()
 @click.pass_context
 def init(ctx):
-	ctx.obj.init_repo()
+	if ctx.obj.keg.initialize():
+		click.echo(f"Initialized in {ctx.obj.keg.path}")
+	else:
+		click.echo(f"Reinitialized in {ctx.obj.keg.path}")
 
 
 @main.command()
@@ -383,7 +357,7 @@ def init(ctx):
 @click.pass_context
 def fetch(ctx, remote, metadata_only=True):
 	click.echo(f"Fetching {remote}")
-	keg = ctx.obj.get_remote(remote)
+	keg = ctx.obj.keg.get_remote(remote)
 	cdn, versions, decryption_keys = ctx.obj.fetch_stateful_data(keg)
 	if decryption_keys:
 		click.echo("This repository is encrypted. Key not available. Aborting fetch.")
@@ -399,7 +373,7 @@ def fetch(ctx, remote, metadata_only=True):
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def fetch_all(ctx, metadata_only=True):
-	for remote in ctx.obj.fetchable_remotes:
+	for remote in ctx.obj.keg.config.fetchable_remotes:
 		ctx.invoke(fetch, remote=remote, metadata_only=metadata_only)
 
 
@@ -409,7 +383,7 @@ def fetch_all(ctx, metadata_only=True):
 @click.option("--metadata-only", is_flag=True)
 @click.pass_context
 def force_fetch(ctx, remote, version_keys, metadata_only):
-	http_remote: CacheableHttpRemote = ctx.obj.get_remote(remote)
+	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
 	cdn = ctx.obj._choose_cdn(
 		http_remote.get_cached_cdns(remote, ctx.obj.response_cache_dir)
 	)
@@ -482,11 +456,11 @@ def add_object(ctx, paths, type, remote):
 	if type == "loose-file":
 		click.echo("Loading known encoding files...")
 
-		results = ctx.obj.db.get_configs(remote=remote)
+		results = ctx.obj.keg.db.get_configs(remote=remote)
 
 		encodings = []
 		encoding_keys = set()
-		cdn = ctx.obj.local_cdn
+		cdn = ctx.obj.keg.local_cdn
 		indexed_keys = set()
 		for build_config_key, cdn_config_key in results:
 			if cdn.has_config(cdn_config_key):
@@ -515,7 +489,7 @@ def add_object(ctx, paths, type, remote):
 
 		for path in paths:
 			key = os.path.basename(path)
-			ngdp_path = os.path.join(ctx.obj.objects_path, "data", partition_hash(key))
+			ngdp_path = os.path.join(ctx.obj.keg.objects_path, "data", partition_hash(key))
 			if os.path.exists(ngdp_path):
 				tqdm.write(f"File already exists: {ngdp_path}. Skipping.")
 				continue
@@ -557,7 +531,7 @@ def add_object(ctx, paths, type, remote):
 			# Sanity check
 			assert data.startswith(b"# ")
 
-			ngdp_path = os.path.join(ctx.obj.objects_path, "config", partition_hash(key))
+			ngdp_path = os.path.join(ctx.obj.keg.objects_path, "config", partition_hash(key))
 			_ingest_move(path, ngdp_path)
 
 		elif type in ("cdns", "versions"):
@@ -571,12 +545,12 @@ def add_object(ctx, paths, type, remote):
 			elif type == "versions":
 				assert data.startswith(b"Region!STRING:0|")
 
-			keg = ctx.obj.get_remote(remote)
+			keg = ctx.obj.keg.get_remote(remote)
 
-			cursor = ctx.obj.db.cursor()
+			cursor = ctx.obj.keg.db.cursor()
 			psvfile = psv.loads(data.decode())
 			keg.cache_psv(psvfile, key, f"/{type}", cursor)
-			ctx.obj.db.commit()
+			ctx.obj.keg.db.commit()
 
 			ngdp_path = os.path.join(
 				ctx.obj.response_cache_dir, type, partition_hash(key)
@@ -588,7 +562,7 @@ def add_object(ctx, paths, type, remote):
 			verify_data(type, data[-28:], key, verify=ctx.obj.verify)
 			obj_dir = "data" if type == "data-index" else "patch"
 			ngdp_path = os.path.join(
-				ctx.obj.objects_path, obj_dir, partition_hash(key) + ".index"
+				ctx.obj.keg.objects_path, obj_dir, partition_hash(key) + ".index"
 			)
 			_ingest_move(path, ngdp_path)
 
@@ -597,17 +571,17 @@ def add_object(ctx, paths, type, remote):
 			assert data.startswith(b"ZBSDIFF1")
 
 			ngdp_path = os.path.join(
-				ctx.obj.objects_path, "patch", partition_hash(key)
+				ctx.obj.keg.objects_path, "patch", partition_hash(key)
 			)
 			_ingest_move(path, ngdp_path)
 
 		elif type == "archive":
 			# TODO verification
-			if not ctx.obj.local_cdn.has_index(key):
+			if not ctx.obj.keg.local_cdn.has_index(key):
 				raise click.ClickException(f"Index for {key} not found")
 
 			ngdp_path = os.path.join(
-				ctx.obj.objects_path, "data", partition_hash(key)
+				ctx.obj.keg.objects_path, "data", partition_hash(key)
 			)
 			_ingest_move(path, ngdp_path)
 
@@ -616,8 +590,8 @@ def add_object(ctx, paths, type, remote):
 @click.pass_context
 def remote(ctx):
 	# Ensure the remotes key is in the config
-	if "remotes" not in ctx.obj.config.config:
-		ctx.obj.config.config["remotes"] = {}
+	if "remotes" not in ctx.obj.keg.config.config:
+		ctx.obj.keg.config.config["remotes"] = {}
 
 
 @remote.command("add")
@@ -627,10 +601,10 @@ def remote(ctx):
 @click.pass_context
 def add_remote(ctx, remotes, default_fetch, writeable):
 	for remote in remotes:
-		if remote in ctx.obj.config.remotes:
+		if remote in ctx.obj.keg.config.remotes:
 			raise click.ClickException(f"Remote {remote} already exists")
 
-		ctx.obj.config.add_remote(remote, default_fetch, writeable)
+		ctx.obj.keg.config.add_remote(remote, default_fetch, writeable)
 
 
 @remote.command("rm")
@@ -639,7 +613,7 @@ def add_remote(ctx, remotes, default_fetch, writeable):
 def remove_remote(ctx, remotes):
 	for remote in remotes:
 		try:
-			ctx.obj.config.remove_remote(remote)
+			ctx.obj.keg.config.remove_remote(remote)
 		except KeyError:
 			raise click.ClickException(f"No such remote: {remote}")
 
@@ -647,7 +621,7 @@ def remove_remote(ctx, remotes):
 @remote.command("list")
 @click.pass_context
 def list_remotes(ctx):
-	for remote in ctx.obj.remotes:
+	for remote in ctx.obj.keg.config.remotes:
 		print(remote)
 
 
@@ -655,7 +629,7 @@ def list_remotes(ctx):
 @click.argument("remote", type=RemoteParam())
 @click.pass_context
 def inspect(ctx, remote):
-	results = ctx.obj.db.get_versions(remote=remote)
+	results = ctx.obj.keg.db.get_versions(remote=remote)
 
 	if not results:
 		click.echo(f"No known data for {remote}")
@@ -680,7 +654,7 @@ def inspect(ctx, remote):
 def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	# version can be a BuildName, BuildID or BuildConfig
 	try:
-		build_config_key, cdn_config_key = ctx.obj.db.find_version(
+		build_config_key, cdn_config_key = ctx.obj.keg.db.find_version(
 			remote=remote, version=version
 		)
 	except Exception as e:
@@ -688,7 +662,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 
 	click.echo(f"Checking out {build_config_key}...")
 
-	keg = ctx.obj.get_remote(remote)
+	keg = ctx.obj.keg.get_remote(remote)
 	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.response_cache_dir))
 
 	build_config = cdn.get_build_config(build_config_key, verify=ctx.obj.verify)
@@ -822,7 +796,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 @click.pass_context
 def show_log(ctx, remote, type):
 	column = f"/{type}"
-	results = ctx.obj.db.get_responses(remote=remote, path=column)
+	results = ctx.obj.keg.db.get_responses(remote=remote, path=column)
 
 	state_cache = StateCache(ctx.obj.response_cache_dir)
 
@@ -858,7 +832,7 @@ def show_object(ctx, remote, object):
 	else:
 		raise click.ClickException(f"Unknown object type: {object}")
 
-	cursor = ctx.obj.db.cursor()
+	cursor = ctx.obj.keg.db.cursor()
 
 	cursor.execute(f"""
 		SELECT distinct("{column}")
@@ -883,7 +857,7 @@ def fsck(ctx, delete):
 	def _get_objects(patterns):
 		return sorted(
 			f for pattern in patterns
-			for f in iglob(os.path.join(ctx.obj.ngdp_path, pattern))
+			for f in iglob(os.path.join(ctx.obj.keg.path, pattern))
 		)
 
 	objects = _get_objects((
@@ -903,7 +877,7 @@ def fsck(ctx, delete):
 	deleted_str = " (deleted)" if delete else ""
 	for path in objects:
 		bar.update()
-		base_path = path[len(ctx.obj.ngdp_path) + 1:]  # Strip the full path to .ngdp
+		base_path = path[len(ctx.obj.keg.path) + 1:]  # Strip the full path to .ngdp
 		key = os.path.basename(path)
 		bar.set_description(f"Checking objects: {key} ({base_path})")
 		if key.endswith(".keg_temp"):
@@ -966,7 +940,7 @@ def parse_index(ctx, key_or_path):
 
 		if looks_like_md5(key_or_path):
 			real_path = os.path.join(
-				ctx.obj.objects_path,
+				ctx.obj.keg.objects_path,
 				"data",
 				partition_hash(key_or_path) + ".index"
 			)
@@ -1025,7 +999,7 @@ def parse_encoding(ctx, paths):
 @click.option("--extract-blte/--no-extract-blte", default=True)
 @click.pass_context
 def extract_archive(ctx, archive_key, out_dir, extract_blte):
-	cdn = ctx.obj.local_cdn
+	cdn = ctx.obj.keg.local_cdn
 	if not cdn.has_data(archive_key):
 		raise click.ClickException(f"Archive {archive_key} not found.")
 	if not cdn.has_index(archive_key):
@@ -1060,7 +1034,7 @@ def extract_archive(ctx, archive_key, out_dir, extract_blte):
 @click.argument("fragment-paths", nargs=-1)
 @click.pass_context
 def reconstruct_archive(ctx, archive_key, fragment_paths):
-	cdn = ctx.obj.local_cdn
+	cdn = ctx.obj.keg.local_cdn
 	if cdn.has_data(archive_key):
 		raise click.ClickException(f"Archive {archive_key} already exists.")
 	if not cdn.has_index(archive_key):
