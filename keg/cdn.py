@@ -121,11 +121,17 @@ class LocalCDN(BaseCDN):
 			self.base_dir, "configs", "data", path.lstrip("/")
 		)
 
+	def get_fragment_path(self, key: str) -> str:
+		return os.path.join(self.fragments_dir, partition_hash(key))
+
 	def get_item(self, path: str) -> IO:
 		return open(self.get_full_path(path), "rb")
 
 	def get_config_item(self, path: str) -> IO:
 		return open(self.get_config_path(path), "rb")
+
+	def get_fragment(self, key: str) -> IO:
+		return open(self.get_fragment_path(key), "rb")
 
 	def exists(self, path: str) -> bool:
 		return os.path.exists(self.get_full_path(path))
@@ -138,6 +144,9 @@ class LocalCDN(BaseCDN):
 
 	def has_data(self, key: str) -> bool:
 		return self.exists(f"/data/{partition_hash(key)}")
+
+	def has_fragment(self, key: str) -> bool:
+		return os.path.exists(self.get_fragment_path(key))
 
 	def has_index(self, key: str) -> bool:
 		return self.exists(f"/data/{partition_hash(key)}.index")
