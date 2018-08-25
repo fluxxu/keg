@@ -863,7 +863,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only):
 
 	if dryrun:
 		table = ctx.obj.tabulate(
-			entries, headers=["Filename", "Digest", "Size"]
+			entries, headers=("Filename", "Digest", "Size")
 		)
 		click.secho(table, fg="black", bold=True)
 
