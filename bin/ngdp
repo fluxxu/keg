@@ -970,7 +970,12 @@ def parse_encoding(ctx, paths):
 		click.echo(ctx.obj.tabulate(content_keys, headers=headers))
 
 
-@main.command("extract-archive")
+@main.group()
+def archive():
+	pass
+
+
+@archive.command("extract")
 @click.argument("archive-key")
 @click.option("--out-dir", default=".")
 @click.option("--extract-blte/--no-extract-blte", default=True)
@@ -1006,7 +1011,7 @@ def extract_archive(ctx, archive_key, out_dir, extract_blte):
 	bar.close()
 
 
-@main.command("reconstruct-archive")
+@archive.command("create")
 @click.argument("archive-key")
 @click.argument("fragment-paths", nargs=-1)
 @click.pass_context
