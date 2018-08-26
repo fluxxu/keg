@@ -53,3 +53,11 @@ class BuildManager:
 			self.cdn,
 			verify=self.verify
 		)
+
+	def get_root(self) -> bytes:
+		encoding_file = self.get_encoding()
+		assert encoding_file
+		root_ekey = encoding_file.find_by_content_key(self.build_config.root)
+		archive_group = self.get_archive_group()
+
+		return archive_group.get_file_by_key(root_ekey)
