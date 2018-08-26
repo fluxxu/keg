@@ -1,9 +1,6 @@
-from typing import Iterable, Tuple, Union
+from typing import Iterable, Tuple
 
-from . import blte
 from .archive import ArchiveGroup
-from .encoding import EncodingFile
-from .installfile import InstallFile
 from .patch import PatchEntry
 
 
@@ -32,30 +29,6 @@ class BuildConfig(BaseConfig):
 		elif len(ret) == 1:
 			return ret[0], ""
 		return ret[0], ret[1]
-
-	def get_encoding_file(self, cdn, verify: bool=False) -> Union[EncodingFile, None]:
-		ckey, ekey = self.encodings
-		if not ekey:
-			return None
-
-		with cdn.download_data(ekey, verify=verify) as fp:
-			decoded_data = blte.load(fp, ekey, verify=verify)
-
-		return EncodingFile(decoded_data, ckey, verify=verify)
-
-	def get_install_file(self, cdn, verify: bool=False) -> Union[InstallFile, None]:
-		if not self.install:
-			return None
-
-		encoding_file = self.get_encoding_file(cdn, verify=verify)
-		if not encoding_file:
-			return None
-
-		install_file_ekey = encoding_file.find_by_content_key(self.install)
-		with cdn.download_data(install_file_ekey, verify=verify) as fp:
-			return InstallFile.from_blte_file(
-				fp, self.install, install_file_ekey, verify=verify
-			)
 
 
 class CDNConfig(BaseConfig):

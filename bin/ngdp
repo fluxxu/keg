@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from keg import CacheableHttpRemote, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
+from keg.build import BuildManager
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
@@ -266,18 +267,16 @@ class App:
 
 			bar.set_description_str(f"{msg}: Retrieving build configuration")
 			try:
-				build_config = cdn.get_build_config(
-					version.build_config, verify=self.verify
-				)
+				build = BuildManager(version.build_config, cdn, verify=self.verify)
 			except NetworkError as e:
 				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
 				continue
 
 			bar.set_description_str(f"{msg}: Retrieving encoding file")
 			try:
-				encoding_file = build_config.get_encoding_file(cdn, verify=self.verify)
+				encoding_file = build.get_encoding()
 			except NetworkError:
-				tqdm.write(f"WARNING: Cannot get encoding file {build_config.encodings}.")
+				tqdm.write(f"WARNING: Cannot get encoding file {build.build_config.encodings}.")
 				encoding_file = None
 
 			if encoding_file:
@@ -377,11 +376,11 @@ def fetch_all(ctx, metadata_only=True):
 def force_fetch(ctx, remote, version_keys, metadata_only):
 	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
 	cdn = ctx.obj._choose_cdn(
-		http_remote.get_cached_cdns(remote, ctx.obj.response_cache_dir)
+		http_remote.get_cached_cdns(remote, ctx.obj.keg.response_cache_dir)
 	)
 
 	for version_key in version_keys:
-		psvfile = StateCache(ctx.obj.response_cache_dir).read_psv("/versions", version_key)
+		psvfile = StateCache(ctx.obj.keg.response_cache_dir).read_psv("/versions", version_key)
 		versions = [Versions(row) for row in psvfile]
 
 		try:
@@ -467,12 +466,12 @@ def add_object(ctx, paths, type, remote):
 				continue
 
 			if cdn.has_config(build_config_key):
-				build_config = cdn.get_build_config(build_config_key)
+				build = BuildManager(build_config_key, cdn, verify=ctx.obj.verify)
 
-				ckey, ekey = build_config.encodings
+				ckey, ekey = build.build_config.encodings
 				encoding_keys.add(ekey)
 				try:
-					encoding_file = build_config.get_encoding_file(cdn, verify=ctx.obj.verify)
+					encoding_file = build.get_encoding()
 				except FileNotFoundError:
 					continue
 
@@ -545,7 +544,7 @@ def add_object(ctx, paths, type, remote):
 			ctx.obj.keg.db.commit()
 
 			ngdp_path = os.path.join(
-				ctx.obj.response_cache_dir, type, partition_hash(key)
+				ctx.obj.keg.response_cache_dir, type, partition_hash(key)
 			)
 			_ingest_move(path, ngdp_path)
 
@@ -655,11 +654,11 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	click.echo(f"Checking out {build_config_key}...")
 
 	keg = ctx.obj.keg.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.response_cache_dir))
+	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.keg.response_cache_dir))
 
-	build_config = cdn.get_build_config(build_config_key, verify=ctx.obj.verify)
+	build = BuildManager(cdn, build_config_key, verify=ctx.obj.verify)
 
-	install_file = build_config.get_install_file(cdn)
+	install_file = build.get_install()
 	if not install_file:
 		raise click.ClickException("Install file not found")
 
@@ -683,7 +682,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 		]
 
 	if root:
-		root_key = build_config.root
+		root_key = build.build_config.root
 		root_size = -1
 		entries.append((
 			f"{root_key}.root",
@@ -706,7 +705,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	install_dir = os.path.abspath(outdir)
 	click.echo(f"Installation directory: {install_dir}")
 
-	encoding_file = build_config.get_encoding_file(cdn)
+	encoding_file = build.get_encoding()
 	if not encoding_file:
 		raise click.ClickException("No encoding file found. Cannot proceed.")
 
@@ -790,7 +789,7 @@ def show_log(ctx, remote, type):
 	column = f"/{type}"
 	results = ctx.obj.keg.db.get_responses(remote=remote, path=column)
 
-	state_cache = StateCache(ctx.obj.response_cache_dir)
+	state_cache = StateCache(ctx.obj.keg.response_cache_dir)
 
 	last = ""
 	for digest, timestamp in results:
