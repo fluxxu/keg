@@ -111,6 +111,21 @@ Keg also supports verifying the integrity of the repository.
 Run that command with the `--delete` argument if you wish to delete bad files.
 
 
+### Archives
+
+Archives are large files which are concatenations of lots of small BLTE fragments.
+They are stored in `objects/data/.../*` and always should have a corresponding `.index`
+file.
+Files in the `data/` folder which do not have a corresponding `.index` file should always
+be loose files, referenced by encoding files.
+
+- To list all archives, run `ngdp archive list`, optionally with a `--remote` argument.
+  White keys are available locally, dark keys are not.
+- To extract an archive, run `ngdp archive extract <key>`.
+- To create an archive from extracted fragments, run `ngdp archive create <key> [folder]`.
+  The folder must contain all the required fragment. The index must already exist.
+
+
 ## Concepts
 
 ### What is NGDP?
