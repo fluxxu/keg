@@ -23,8 +23,8 @@ zip_level_and_bits = BEGIN zip_level COMMA zip_bits END
 zip_args = zip_level / zip_level_and_bits
 
 encryption_key = HEX_NUMBER
-encryption_iv = HEX_NUMBER
-encryption_args = BEGIN encryption_key COMMA encryption_iv COMMA espec END
+encryption_nonce = HEX_NUMBER
+encryption_args = BEGIN encryption_key COMMA encryption_nonce COMMA espec END
 
 unit_kilobyte = "K"
 unit_megabyte = "M"
