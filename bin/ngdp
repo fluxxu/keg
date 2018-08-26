@@ -528,12 +528,8 @@ def add_object(ctx, paths, type, remote):
 			elif type == "versions":
 				assert data.startswith(b"Region!STRING:0|")
 
-			keg = ctx.obj.keg.get_remote(remote)
-
-			cursor = ctx.obj.keg.db.cursor()
 			psvfile = psv.loads(data.decode())
-			keg.cache_psv(psvfile, key, f"/{type}", cursor)
-			ctx.obj.keg.db.commit()
+			ctx.obj.keg.db.write_psv(psvfile, key, remote, f"/{type}")
 
 			ngdp_path = os.path.join(
 				ctx.obj.keg.response_cache_dir, type, partition_hash(key)

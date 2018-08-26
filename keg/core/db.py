@@ -1,6 +1,9 @@
 import sqlite3
 from typing import Iterable, List, Tuple
 
+from .. import psv
+from ..http import StatefulResponse
+
 
 TABLE_DEFINITIONS = [
 	"""
@@ -161,3 +164,64 @@ class KegDB:
 				f"Version {repr(version)} is ambiguous",
 				sorted(set(k for k, _ in results))
 			)
+
+	def write_response(
+		self, response: StatefulResponse, remote: str, path: str, source: int
+	) -> None:
+		cursor = self.cursor()
+		cursor.execute("""
+			INSERT INTO "responses"
+				(remote, path, timestamp, digest, source)
+			VALUES
+				(?, ?, ?, ?, ?)
+		""", (remote, path, response.timestamp, response.digest, source))
+		self.commit()
+
+	def get_response_key(self, remote: str, path: str) -> str:
+		cursor = self.cursor()
+		cursor.execute("""
+			SELECT digest
+			FROM responses
+			WHERE
+				remote = ? AND
+				path = ?
+			ORDER BY timestamp DESC
+			LIMIT 1
+		""", (remote, path))
+		ret = cursor.fetchone()
+		if not ret:
+			return ""
+		return ret[0]
+
+	def write_psv(self, psvfile: psv.PSVFile, key: str, remote: str, path: str) -> None:
+		cursor = self.cursor()
+		table_name = path.strip("/")
+		cursor.execute(f"""
+			DELETE FROM "{table_name}"
+			WHERE
+				remote = ? AND
+				key = ?
+		""", (remote, key))
+
+		insert_tpl = """
+			INSERT INTO "%s"
+				(remote, key, row, %s)
+			VALUES
+				(?, ?, ?, %s)
+			""" % (
+			table_name,
+			", ".join(psvfile.header),
+			", ".join(["?"] * len(psvfile.header))
+		)
+
+		rows = []
+		for i, row in enumerate(psvfile):
+			# Always ensure lowercase entry of hexes
+			cleaned_row = [
+				cell.lower() if "!HEX:" in h.upper() else cell
+				for cell, h in zip(row, psvfile.raw_header)
+			]
+			rows.append([remote, key, i, *cleaned_row])
+
+		cursor.executemany(insert_tpl, rows)
+		self.commit()
