@@ -32,10 +32,7 @@ class RemoteParam(click.ParamType):
 	name = "remote"
 
 	def convert(self, value, param, ctx):
-		if "://" not in value:
-			value = ctx.obj.keg.config.default_remote_prefix + value
-
-		return value
+		return ctx.obj.keg.clean_remote(value)
 
 
 class App:

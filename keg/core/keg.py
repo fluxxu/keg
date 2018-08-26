@@ -43,3 +43,12 @@ class Keg:
 		return CacheableHttpRemote(
 			remote, cache_dir=self.response_cache_dir, cache_db=self.db
 		)
+
+	def clean_remote(self, remote: str) -> str:
+		"""
+		Cleans a remote by adding the configured default remote prefix
+		if it's missing a scheme.
+		"""
+		if "://" not in remote:
+			remote = self.config.default_remote_prefix + remote
+		return remote
