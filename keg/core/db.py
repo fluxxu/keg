@@ -80,7 +80,7 @@ class KegDB:
 	def commit(self):
 		return self.db.commit()
 
-	def get_configs(self, *, remote: str=None) -> List[Tuple[str, str]]:
+	def get_build_configs(self, *, remote: str="") -> List[Tuple[str, str]]:
 		"""
 		Returns a list of all BuildConfigs and their corresponding CDNConfig.
 		Specify `remote` to filter down to only those for that remote.

@@ -31,7 +31,7 @@ def main():
 	)
 
 	misses = 0
-	for build_config_key, cdn_config_key in app.db.get_configs(remote=remote):
+	for build_config_key, cdn_config_key in app.db.get_build_configs(remote=remote):
 		try:
 			build = BuildManager(build_config_key, cdn_config_key, cdn)
 		except FileNotFoundError:

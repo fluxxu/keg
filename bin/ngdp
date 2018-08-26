@@ -441,7 +441,7 @@ def add_object(ctx, paths, type, remote):
 	if type == "loose-file":
 		click.echo("Loading known encoding files...")
 
-		results = ctx.obj.keg.db.get_configs(remote=remote)
+		results = ctx.obj.keg.db.get_build_configs(remote=remote)
 
 		encodings = []
 		encoding_keys = set()
