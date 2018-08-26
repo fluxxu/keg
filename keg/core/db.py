@@ -99,8 +99,33 @@ class KegDB:
 				FROM versions
 				GROUP BY BuildConfig
 			""")
-
 		return cursor.fetchall()
+
+	def get_cdn_configs(self, *, remotes: List[str]=None) -> List[str]:
+		"""
+		Returns a list of all BuildConfigs and their corresponding CDNConfig.
+		Specify `remote` to filter down to only those for that remote.
+		"""
+
+		cursor = self.cursor()
+		if remotes:
+			_placeholder = ", ".join(["?"] * len(remotes))
+			cursor.execute(f"""
+				SELECT distinct(CDNConfig)
+				FROM versions
+				WHERE remote IN ({_placeholder})
+				GROUP BY CDNConfig
+				ORDER BY CDNConfig
+			""", (*remotes, ))
+		else:
+			cursor.execute("""
+				SELECT distinct(CDNConfig)
+				FROM versions
+				GROUP BY CDNConfig
+				ORDER BY CDNConfig
+			""")
+
+		return [k for k, in cursor.fetchall()]
 
 	def get_versions(self, *, remote: str) -> List[Tuple[str, int, str]]:
 		"""
