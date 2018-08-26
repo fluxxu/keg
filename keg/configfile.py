@@ -1,6 +1,7 @@
 from typing import Iterable, Tuple, Union
 
 from . import blte
+from .archive import ArchiveGroup
 from .encoding import EncodingFile
 from .installfile import InstallFile
 from .patch import PatchEntry
@@ -70,6 +71,9 @@ class CDNConfig(BaseConfig):
 	@property
 	def patch_archives(self):
 		return self._values.get("patch-archives", "").split()
+
+	def get_archive_group(self, cdn, verify: bool=False) -> ArchiveGroup:
+		return ArchiveGroup(self.archives, self.archive_group, cdn, verify=verify)
 
 
 class PatchConfig(BaseConfig):

@@ -265,12 +265,7 @@ class App:
 
 			# Create the merged archive group
 			bar.set_description_str(f"{msg}: Creating merged archive")
-			archive_group = ArchiveGroup(
-				cdn_config.archives,
-				cdn_config.archive_group,
-				cdn,
-				verify=self.verify
-			)
+			archive_group = cdn_config.get_archive_group(cdn, verify=self.verify)
 
 			bar.set_description_str(f"{msg}: Retrieving build configuration")
 			try:
