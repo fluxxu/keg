@@ -977,8 +977,10 @@ def archive():
 
 @archive.command("list")
 @click.option("--remote", type=RemoteParam(), multiple=True)
+@click.option("--show-available/--hide-available", default=True)
+@click.option("--show-unavailable/--hide-unavailable", default=True)
 @click.pass_context
-def list_archives(ctx, remote):
+def list_archives(ctx, remote, show_available, show_unavailable):
 	cdn = ctx.obj.keg.local_cdn
 	cdn_config_keys = ctx.obj.keg.db.get_cdn_configs(remotes=remote)
 	archives = set()
@@ -992,9 +994,11 @@ def list_archives(ctx, remote):
 
 	for archive_key in sorted(archives):
 		if cdn.has_data(archive_key):
-			click.secho(archive_key, bold=True)
+			if show_available:
+				click.secho(archive_key, bold=True)
 		else:
-			click.secho(archive_key, fg="black", bold=True)
+			if show_unavailable:
+				click.secho(archive_key, fg="black", bold=True)
 
 
 @archive.command("extract")
