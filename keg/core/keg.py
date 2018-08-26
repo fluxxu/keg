@@ -4,6 +4,7 @@ from .. import CacheableHttpRemote
 from ..cdn import LocalCDN
 from .config import KegConfig
 from .db import KegDB
+from .statecache import StateCache
 
 
 class Keg:
@@ -14,6 +15,7 @@ class Keg:
 		self.response_cache_dir = os.path.join(self.path, "responses")
 		self.config_path = os.path.join(self.path, "keg.conf")
 		self.db_path = os.path.join(self.path, "keg.db")
+		self.state_cache = StateCache(self.response_cache_dir)
 
 		self.initialized = os.path.exists(self.path)
 
@@ -41,7 +43,10 @@ class Keg:
 
 	def get_remote(self, remote: str) -> CacheableHttpRemote:
 		return CacheableHttpRemote(
-			remote, cache_dir=self.response_cache_dir, cache_db=self.db
+			remote,
+			cache_dir=self.response_cache_dir,
+			cache_db=self.db,
+			state_cache=self.state_cache
 		)
 
 	def clean_remote(self, remote: str) -> str:

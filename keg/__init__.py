@@ -2,7 +2,7 @@ from enum import IntEnum
 from typing import Any, List, Tuple
 
 from . import psv
-from .http import CDNs, HttpRemote, StateCache, Versions
+from .http import CDNs, HttpRemote, Versions
 
 
 class Source(IntEnum):
@@ -10,14 +10,15 @@ class Source(IntEnum):
 
 
 class CacheableHttpRemote(HttpRemote):
-	def __init__(self, remote: str, cache_dir: str, cache_db) -> None:
+	def __init__(self, remote: str, cache_dir: str, cache_db, state_cache) -> None:
 		super().__init__(remote)
 		self.cache_dir = cache_dir
 		self.cache_db = cache_db
+		self.state_cache = state_cache
 
 	def get_blob(self, name: str) -> Tuple[Any, Any]:
 		ret, response = super().get_blob(name)
-		response.write_to_cache(self.cache_dir)
+		self.state_cache.write_response(response)
 		return ret, response
 
 	def cache_psv(self, psvfile, key: str, path: str, cursor) -> None:
@@ -52,7 +53,7 @@ class CacheableHttpRemote(HttpRemote):
 
 	def get_psv(self, path: str):
 		psvfile, response = super().get_psv(path)
-		response.write_to_cache(self.cache_dir)
+		self.state_cache.write_response(response)
 
 		cursor = self.cache_db.cursor()
 
@@ -63,7 +64,7 @@ class CacheableHttpRemote(HttpRemote):
 
 		return psvfile, response
 
-	def get_cached_psv(self, remote: str, path: str, cache_dir: str) -> psv.PSVFile:
+	def get_cached_psv(self, remote: str, path: str) -> psv.PSVFile:
 		cursor = self.cache_db.cursor()
 		cursor.execute("""
 			SELECT digest
@@ -80,10 +81,10 @@ class CacheableHttpRemote(HttpRemote):
 			return self.get_psv(path)
 
 		key = results[0]
-		return StateCache(cache_dir).read_psv(path, key)
+		return self.state_cache.read_psv(path, key)
 
-	def get_cached_cdns(self, remote: str, cache_dir: str) -> List[CDNs]:
-		return [CDNs(row) for row in self.get_cached_psv(remote, "/cdns", cache_dir)]
+	def get_cached_cdns(self, remote: str) -> List[CDNs]:
+		return [CDNs(row) for row in self.get_cached_psv(remote, "/cdns")]
 
-	def get_cached_versions(self, remote: str, cache_dir: str) -> List[Versions]:
-		return [Versions(row) for row in self.get_cached_psv(remote, "/versions", cache_dir)]
+	def get_cached_versions(self, remote: str) -> List[Versions]:
+		return [Versions(row) for row in self.get_cached_psv(remote, "/versions")]

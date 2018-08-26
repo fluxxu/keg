@@ -21,7 +21,7 @@ from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
-from keg.http import StateCache, Versions
+from keg.http import Versions
 from keg.utils import partition_hash, verify_data
 
 
@@ -371,12 +371,10 @@ def fetch_all(ctx, metadata_only=True):
 @click.pass_context
 def force_fetch(ctx, remote, version_keys, metadata_only):
 	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(
-		http_remote.get_cached_cdns(remote, ctx.obj.keg.response_cache_dir)
-	)
+	cdn = ctx.obj._choose_cdn(http_remote.get_cached_cdns(remote))
 
 	for version_key in version_keys:
-		psvfile = StateCache(ctx.obj.keg.response_cache_dir).read_psv("/versions", version_key)
+		psvfile = ctx.obj.keg.state_cache.read_psv("/versions", version_key)
 		versions = [Versions(row) for row in psvfile]
 
 		try:
@@ -648,7 +646,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	click.echo(f"Checking out {build_config_key}...")
 
 	keg = ctx.obj.keg.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.keg.response_cache_dir))
+	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote))
 
 	build = BuildManager(build_config_key, cdn_config_key, cdn, verify=ctx.obj.verify)
 
@@ -783,8 +781,6 @@ def show_log(ctx, remote, type):
 	column = f"/{type}"
 	results = ctx.obj.keg.db.get_responses(remote=remote, path=column)
 
-	state_cache = StateCache(ctx.obj.keg.response_cache_dir)
-
 	last = ""
 	for digest, timestamp in results:
 		if digest == last:
@@ -794,8 +790,8 @@ def show_log(ctx, remote, type):
 		click.secho(f"{type} {digest}", fg="yellow")
 		click.echo("Date: " + datetime.fromtimestamp(timestamp).isoformat() + "Z")
 		click.echo(f"URL: {remote + column}\n")
-		if state_cache.exists(type, digest):
-			contents = state_cache.read(type, digest)
+		if ctx.obj.keg.state_cache.exists(type, digest):
+			contents = ctx.obj.keg.state_cache.read(type, digest)
 			table = ctx.obj.tabulate(psv.loads(contents))
 			click.secho(table, fg="black", bold=True)
 		else:

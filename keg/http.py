@@ -9,7 +9,7 @@ import requests
 
 from . import psv
 from .exceptions import NetworkError
-from .utils import atomic_write, partition_hash
+from .utils import partition_hash
 
 
 class PSVResponse:
@@ -67,35 +67,6 @@ class BGDL(Versions):
 	pass
 
 
-class StateCache:
-	def __init__(self, cache_dir: str) -> None:
-		self.cache_dir = cache_dir
-
-	def _ensure_dir_exists(self, path: str):
-		dirname = os.path.dirname(path)
-		if not os.path.exists(dirname):
-			os.makedirs(dirname)
-
-	def exists(self, name: str, key: str) -> bool:
-		return os.path.exists(self.get_full_path(name, key))
-
-	def get_full_path(self, name: str, key: str) -> str:
-		return os.path.join(self.cache_dir, name.strip("/"), partition_hash(key))
-
-	def read(self, name: str, key: str) -> str:
-		with open(self.get_full_path(name, key), "r") as f:
-			return f.read()
-
-	def read_psv(self, name: str, key: str) -> psv.PSVFile:
-		data = self.read(name, key)
-		return psv.loads(data)
-
-	def write(self, name: str, key: str, content: bytes) -> int:
-		path = self.get_full_path(name, key)
-		self._ensure_dir_exists(path)
-		return atomic_write(path, content)
-
-
 class StatefulResponse:
 	def __init__(self, name: str, response: requests.Response) -> None:
 		self.name = name
@@ -109,9 +80,6 @@ class StatefulResponse:
 
 		if response.status_code != 200:
 			raise NetworkError(f"Got status code {response.status_code} for {repr(name)}")
-
-	def write_to_cache(self, base_cache_dir: str) -> int:
-		return StateCache(base_cache_dir).write(self.name, self.digest, self.content)
 
 
 class Remote:
