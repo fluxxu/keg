@@ -371,7 +371,7 @@ def fetch_all(ctx, metadata_only=True):
 @click.pass_context
 def force_fetch(ctx, remote, version_keys, metadata_only):
 	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(http_remote.get_cached_cdns(remote))
+	cdn = ctx.obj._choose_cdn(http_remote.get_cached_cdns())
 
 	for version_key in version_keys:
 		psvfile = ctx.obj.keg.state_cache.read_psv("/versions", version_key)
@@ -641,8 +641,8 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 
 	click.echo(f"Checking out {build_config_key}...")
 
-	keg = ctx.obj.keg.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote))
+	http_remote = ctx.obj.keg.get_remote(remote)
+	cdn = ctx.obj._choose_cdn(http_remote.get_cached_cdns())
 
 	build = BuildManager(build_config_key, cdn_config_key, cdn, verify=ctx.obj.verify)
 
