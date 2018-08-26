@@ -249,28 +249,24 @@ class App:
 		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
 		for version in versions:
 			msg = f"Preparing version {version.build_config}"
-			bar.set_description_str(msg)
+
+			bar.set_description_str(f"{msg}: Retrieving build configuration")
 			try:
-				cdn_config = cdn.get_cdn_config(version.cdn_config, verify=self.verify)
-			except NetworkError:
-				tqdm.write(f"WARNING: Cannot get CDN config {version.cdn_config}. Skipping.")
+				build = BuildManager(
+					version.build_config, version.cdn_config, cdn, verify=self.verify
+				)
+			except NetworkError as e:
+				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
 				continue
 
 			# get the archive list
-			for archive in cdn_config.archives:
+			for archive in build.cdn_config.archives:
 				if not cdn.local_cdn.has_data(archive):
 					archives_to_fetch.add(archive)
 
 			# Create the merged archive group
 			bar.set_description_str(f"{msg}: Creating merged archive")
-			archive_group = cdn_config.get_archive_group(cdn, verify=self.verify)
-
-			bar.set_description_str(f"{msg}: Retrieving build configuration")
-			try:
-				build = BuildManager(version.build_config, cdn, verify=self.verify)
-			except NetworkError as e:
-				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
-				continue
+			archive_group = build.get_archive_group()
 
 			bar.set_description_str(f"{msg}: Retrieving encoding file")
 			try:
@@ -454,29 +450,27 @@ def add_object(ctx, paths, type, remote):
 		cdn = ctx.obj.keg.local_cdn
 		indexed_keys = set()
 		for build_config_key, cdn_config_key in results:
-			if cdn.has_config(cdn_config_key):
-				cdn_config = cdn.get_cdn_config(cdn_config_key)
-				tqdm.write("Reading archive indices")
-				for archive_key in cdn_config.archives:
-					if cdn.has_index(archive_key):
-						archive_index = cdn.get_index(archive_key, verify=ctx.obj.verify)
-						for key, _, _ in archive_index.items:
-							indexed_keys.add(key)
-			else:
+			if not cdn.has_config(build_config_key) or not cdn.has_config(cdn_config_key):
 				continue
 
-			if cdn.has_config(build_config_key):
-				build = BuildManager(build_config_key, cdn, verify=ctx.obj.verify)
+			build = BuildManager(build_config_key, cdn_config_key, cdn, verify=ctx.obj.verify)
 
-				ckey, ekey = build.build_config.encodings
-				encoding_keys.add(ekey)
-				try:
-					encoding_file = build.get_encoding()
-				except FileNotFoundError:
-					continue
+			tqdm.write("Reading archive indices")
+			for archive_key in build.cdn_config.archives:
+				if cdn.has_index(archive_key):
+					archive_index = cdn.get_index(archive_key, verify=ctx.obj.verify)
+					for key, _, _ in archive_index.items:
+						indexed_keys.add(key)
 
-				if encoding_file:
-					encodings.append(encoding_file)
+			ckey, ekey = build.build_config.encodings
+			encoding_keys.add(ekey)
+			try:
+				encoding_file = build.get_encoding()
+			except FileNotFoundError:
+				continue
+
+			if encoding_file:
+				encodings.append(encoding_file)
 
 		for path in paths:
 			key = os.path.basename(path)
@@ -656,7 +650,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	keg = ctx.obj.keg.get_remote(remote)
 	cdn = ctx.obj._choose_cdn(keg.get_cached_cdns(remote, ctx.obj.keg.response_cache_dir))
 
-	build = BuildManager(cdn, build_config_key, verify=ctx.obj.verify)
+	build = BuildManager(build_config_key, cdn_config_key, cdn, verify=ctx.obj.verify)
 
 	install_file = build.get_install()
 	if not install_file:

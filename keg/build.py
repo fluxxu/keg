@@ -1,16 +1,25 @@
 from typing import Union
 
 from . import blte
+from .archive import ArchiveGroup
 from .encoding import EncodingFile
 from .installfile import InstallFile
 
 
 class BuildManager:
-	def __init__(self, build_config_key: str, cdn, verify: bool=False) -> None:
-		self.build_config_key = build_config_key
+	def __init__(
+		self, build_config: str, cdn_config: str, cdn, verify: bool=False
+	) -> None:
+		self.build_config_key = build_config
+		self.cdn_config_key = cdn_config
 		self.cdn = cdn
 		self.verify = verify
-		self.build_config = cdn.get_build_config(build_config_key, verify=verify)
+
+		self.build_config = cdn.get_build_config(build_config, verify=verify)
+		self.cdn_config = cdn.get_cdn_config(cdn_config, verify=verify)
+
+	def __repr__(self):
+		return f"<{self.__class__.__name__}: {self.build_config_key} {self.cdn_config_key}>"
 
 	def get_encoding(self) -> Union[EncodingFile, None]:
 		ckey, ekey = self.build_config.encodings
@@ -36,3 +45,11 @@ class BuildManager:
 			return InstallFile.from_blte_file(
 				fp, install_ckey, install_ekey, verify=self.verify
 			)
+
+	def get_archive_group(self) -> ArchiveGroup:
+		return ArchiveGroup(
+			self.cdn_config.archives,
+			self.cdn_config.archive_group,
+			self.cdn,
+			verify=self.verify
+		)

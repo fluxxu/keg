@@ -1,6 +1,5 @@
 from typing import Iterable, Tuple
 
-from .archive import ArchiveGroup
 from .patch import PatchEntry
 
 
@@ -44,9 +43,6 @@ class CDNConfig(BaseConfig):
 	@property
 	def patch_archives(self):
 		return self._values.get("patch-archives", "").split()
-
-	def get_archive_group(self, cdn, verify: bool=False) -> ArchiveGroup:
-		return ArchiveGroup(self.archives, self.archive_group, cdn, verify=verify)
 
 
 class PatchConfig(BaseConfig):
