@@ -94,37 +94,34 @@ class App:
 			if not url.scheme or not url.netloc or not url.path:
 				raise click.ClickException(f"Invalid CDN url: {self.force_cdn}")
 
-			return CacheableCDNWrapper(
-				base_dir=self.keg.objects_path,
-				server=f"{url.scheme}://{url.netloc}",
-				path=url.path,
-				config_path=DEFAULT_CONFIG_PATH,
-				fragments_path=self.keg.fragments_path,
-			)
-
-		if not cdns:
+			server = f"{url.scheme}://{url.netloc}"
+			path = url.path
+			config_path = DEFAULT_CONFIG_PATH
+		elif not cdns:
 			raise click.ClickException("No CDNs available. Use --cdn to specify one.")
-
-		available_cdns = ", ".join(cdn.name for cdn in cdns)
-		cdns_lookup = {cdn.name.lower(): cdn for cdn in cdns}
-
-		for preferred_cdn in self.keg.config.preferred_cdns:
-			cdn_name = preferred_cdn.lower()
-			if cdn_name in cdns_lookup:
-				cdn = cdns_lookup[cdn_name]
-				break
 		else:
-			cdn = cdns[0]
+			available_cdns = ", ".join(cdn.name for cdn in cdns)
+			cdns_lookup = {cdn.name.lower(): cdn for cdn in cdns}
 
-		tqdm.write(f"Using {cdn.name} (available: {available_cdns})")
+			for preferred_cdn in self.keg.config.preferred_cdns:
+				cdn_name = preferred_cdn.lower()
+				if cdn_name in cdns_lookup:
+					cdn = cdns_lookup[cdn_name]
+					break
+			else:
+				cdn = cdns[0]
 
-		assert cdn.all_servers
+			tqdm.write(f"Using {cdn.name} (available: {available_cdns})")
+			assert cdn.all_servers
+			server = cdn.all_servers[0]
+			path = cdn.path
+			config_path = cdn.config_path
 
 		return CacheableCDNWrapper(
 			base_dir=self.keg.objects_path,
-			server=cdn.all_servers[0],
-			path=cdn.path,
-			config_path=cdn.config_path,
+			server=server,
+			path=path,
+			config_path=config_path,
 			fragments_path=self.keg.fragments_path,
 		)
 
