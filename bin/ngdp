@@ -40,7 +40,10 @@ class App:
 	def __init__(self, ngdp_dir: str) -> None:
 		self.keg = Keg(ngdp_dir)
 		self.force_cdn = ""
-		self.verify = self.keg.config.verify
+
+	@property
+	def verify(self):
+		return self.keg.config.verify
 
 	def tabulate(self, table, headers=None) -> str:
 		if isinstance(table, psv.PSVFile):
