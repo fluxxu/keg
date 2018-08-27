@@ -45,7 +45,7 @@ class CDNs(PSVResponse):
 
 	@property
 	def servers(self) -> List[str]:
-		return self._row.Servers.split()
+		return getattr(self._row, "Servers", "").split()
 
 
 class Versions(PSVResponse):
