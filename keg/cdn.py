@@ -175,6 +175,11 @@ class LocalCDN(BaseCDN):
 	def has_fragment(self, key: str) -> bool:
 		return os.path.exists(self.get_fragment_path(key))
 
+	def save_item(self, item: IO, path: str) -> None:
+		cache_file_path = self.get_full_path(path)
+		f = HTTPCacheWrapper(item, cache_file_path)
+		f.close()
+
 
 class CacheableCDNWrapper(BaseCDN):
 	def __init__(
@@ -192,11 +197,9 @@ class CacheableCDNWrapper(BaseCDN):
 
 	def get_item(self, path: str) -> IO:
 		if not self.local_cdn.exists(path):
-			cache_file_path = self.local_cdn.get_full_path(path)
 			remote_path = self.remote_cdn._join_path(self.remote_cdn.path, path)
 			response = self.remote_cdn.get_response(remote_path)
-			f = HTTPCacheWrapper(response, cache_file_path)
-			f.close()
+			self.local_cdn.save_item(response.raw, path)
 
 		return self.local_cdn.get_item(path)
 
