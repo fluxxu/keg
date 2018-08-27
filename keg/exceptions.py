@@ -19,3 +19,7 @@ class IntegrityVerificationError(KegException):
 			f"Got:      {digest}"
 		)
 		super().__init__(message)
+
+
+class ArmadilloKeyNotFound(FileNotFoundError):
+	pass

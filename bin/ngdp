@@ -20,7 +20,9 @@ from keg.build import BuildManager
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
-from keg.exceptions import IntegrityVerificationError, NetworkError
+from keg.exceptions import (
+	ArmadilloKeyNotFound, IntegrityVerificationError, NetworkError
+)
 from keg.http import Versions
 from keg.utils import partition_hash, verify_data
 
@@ -359,16 +361,18 @@ def init(ctx):
 @click.pass_context
 def fetch(ctx, remote, metadata_only=True):
 	click.echo(f"Fetching {remote}")
-	keg = ctx.obj.keg.get_remote(remote)
-	cdn, versions, decryption_keys = ctx.obj.fetch_stateful_data(keg)
-	if decryption_keys:
-		click.echo("This repository is encrypted. Key not available. Aborting fetch.")
-		return
+	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
+	cdn, versions, decryption_key_names = ctx.obj.fetch_stateful_data(http_remote)
 
-	try:
-		ctx.obj.fetch(cdn, versions, metadata_only)
-	except IntegrityVerificationError as e:
-		raise click.ClickException(str(e))
+	decryption_keys = {}
+	for product_config, key_name in decryption_key_names.items():
+		try:
+			decryption_keys[key_name] = ctx.obj.keg.get_decryption_key(key_name)
+		except ArmadilloKeyNotFound:
+			click.echo(f"Repository is encrypted with unknown key {key_name}. Aborting.")
+			return
+
+	ctx.obj.fetch(cdn, versions, metadata_only)
 
 
 @main.command("fetch-all")
