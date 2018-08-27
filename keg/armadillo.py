@@ -1,6 +1,8 @@
 from base64 import b32encode
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from hashlib import md5
+
+from Crypto.Cipher import Salsa20  # type: ignore
 
 from .exceptions import IntegrityVerificationError
 
@@ -37,3 +39,8 @@ class ArmadilloKey:
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {b32encode(self.data)}>"
+
+	def decrypt_object(self, key: str, data: bytes) -> bytes:
+		nonce = unhexlify(key)[:-8]
+		cipher = Salsa20.new(key=self.key, nonce=nonce)
+		return cipher.decrypt(data)
