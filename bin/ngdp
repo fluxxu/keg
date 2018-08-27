@@ -154,10 +154,12 @@ class App:
 		except NetworkError:
 			# Optional
 			pass
+
+		blobs = {}
 		for blob_name in ("game", "install"):
 			bar.set_description_str(f"Receiving {blob_name} blob")
 			try:
-				remote.get_blob(blob_name)
+				blobs[blob_name] = remote.get_blob(blob_name)[0]
 			except NetworkError:
 				# Blobs are optional
 				pass
@@ -166,14 +168,24 @@ class App:
 		decryption_keys = {}
 		for version in versions:
 			product_key = version.product_config
-			if not product_key or product_key in decryption_keys:
+
+			if product_key in decryption_keys:
 				continue
 
-			if not cdn.local_cdn.has_config_item(product_key):
-				bar.set_description_str(f"Receiving product config: {product_key}")
-				cdn.fetch_config_data(product_key, verify=self.verify)
-
-			product_config = cdn.get_product_config(product_key, verify=self.verify)
+			if not product_key:
+				# Legacy support (eg. s1a)
+				# ProductConfig essentially replaced the game blob
+				# If there's no product config, we check the game blob.
+				game_blob = blobs.get("game")
+				if game_blob:
+					product_config = game_blob
+				else:
+					continue
+			else:
+				if not cdn.local_cdn.has_config_item(product_key):
+					bar.set_description_str(f"Receiving product config: {product_key}")
+					cdn.fetch_config_data(product_key, verify=self.verify)
+				product_config = cdn.get_product_config(product_key, verify=self.verify)
 
 			# Check if the version is encrypted.
 			# Best guess: decryption key name is in the product config.
