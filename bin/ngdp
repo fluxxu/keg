@@ -891,8 +891,7 @@ def fsck(ctx, delete):
 				if is_data:
 					if path.endswith(".index"):
 						key = key[:-len(".index")]
-						f.seek(-28, os.SEEK_END)
-						verify_data("archive index", f.read(), key, verify=True)
+						ArchiveIndex(f.read(), key, verify=True)
 					elif os.path.exists(path + ".index"):
 						with open(path + ".index", "rb") as index_file:
 							index = ArchiveIndex(index_file.read(), key, verify=False)

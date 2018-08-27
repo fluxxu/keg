@@ -5,6 +5,7 @@ from os import SEEK_CUR, SEEK_END
 from typing import IO, Iterable, List, Optional, Tuple
 
 from .blte import BLTEDecoder
+from .utils import verify_data
 
 
 class Archive:
@@ -42,6 +43,8 @@ class ArchiveIndex:
 
 		self.data = BytesIO(data)
 		self.data.seek(-28, SEEK_END)
+		footer_data = self.data.read()
+		verify_data("archive index", footer_data, key, verify)
 
 		(
 			toc_hash,
@@ -55,7 +58,7 @@ class ArchiveIndex:
 			checksum_size,
 			self.num_items,
 			footer_checksum
-		) = struct.unpack("<8s8BI8s", self.data.read())
+		) = struct.unpack("<8s8BI8s", footer_data)
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.key}>"
