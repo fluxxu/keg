@@ -40,10 +40,10 @@ def get_config_item_path(key: str) -> str:
 
 
 class BaseCDN:
-	def get_item(self, path: str):
+	def get_item(self, path: str) -> IO:
 		raise NotImplementedError()
 
-	def get_config_item(self, path: str):
+	def get_config_item(self, path: str) -> IO:
 		raise NotImplementedError()
 
 	def fetch_config(self, key: str, verify: bool=False) -> bytes:
@@ -211,15 +211,15 @@ class CacheableCDNWrapper(BaseCDN):
 			cache_file_path = self.local_cdn.get_config_path(path)
 			remote_path = self.remote_cdn._join_path(self.remote_cdn.config_path, path)
 			response = self.remote_cdn.get_response(remote_path)
-			f = HTTPCacheWrapper(response, cache_file_path)
+			f = HTTPCacheWrapper(response.raw, cache_file_path)
 			f.close()
 
 		return self.local_cdn.get_config_item(path)
 
 
 class HTTPCacheWrapper:
-	def __init__(self, response: requests.Response, path: str) -> None:
-		self._response = response.raw
+	def __init__(self, fp: IO, path: str) -> None:
+		self.fp = fp
 
 		dir_path = os.path.dirname(path)
 		if not os.path.exists(dir_path):
@@ -243,13 +243,13 @@ class HTTPCacheWrapper:
 		# Atomic write&move; make sure there's no partially-written caches.
 		os.rename(self._temp_path, self._real_path)
 
-		return self._response.close()
+		return self.fp.close()
 
 	def read(self, size: int=-1) -> bytes:
 		if size == -1:
-			ret = self._response.read()
+			ret = self.fp.read()
 		else:
-			ret = self._response.read(size)
+			ret = self.fp.read(size)
 		if ret:
 			self._cache_file.write(ret)
 		return ret
