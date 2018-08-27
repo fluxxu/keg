@@ -5,7 +5,6 @@ from urllib.parse import urljoin
 
 import requests
 
-from . import blizini
 from .archive import Archive, ArchiveIndex
 from .configfile import BuildConfig, CDNConfig, PatchConfig
 from .exceptions import NetworkError
@@ -74,19 +73,14 @@ class BaseCDN:
 		verify_data("patch index", data[-28:], key, verify)
 		return data
 
-	def load_config(self, key: str, verify: bool=False) -> dict:
-		return blizini.load(
-			self.fetch_config(key, verify=verify).decode()
-		)
-
 	def get_build_config(self, key: str, verify: bool=False) -> BuildConfig:
-		return BuildConfig(self.load_config(key, verify))
+		return BuildConfig.from_bytes(self.fetch_config(key, verify=verify))
 
 	def get_cdn_config(self, key: str, verify: bool=False) -> CDNConfig:
-		return CDNConfig(self.load_config(key, verify))
+		return CDNConfig.from_bytes(self.fetch_config(key, verify=verify))
 
 	def get_patch_config(self, key: str, verify: bool=False) -> PatchConfig:
-		return PatchConfig(self.load_config(key, verify))
+		return PatchConfig.from_bytes(self.fetch_config(key, verify=verify))
 
 	def get_product_config(self, key: str, verify: bool=False) -> dict:
 		return json.loads(self.fetch_config_data(key, verify))
