@@ -1,16 +1,27 @@
-from typing import Iterable, Tuple
+from typing import Dict, Iterable, Tuple, Type, TypeVar
 
+from . import blizini
 from .patch import PatchEntry
 
 
+ConfigFile = TypeVar("ConfigFile", bound="BaseConfig")
+
+
 class BaseConfig:
+	@classmethod
+	def from_bytes(cls: Type[ConfigFile], data: bytes, verify: bool=False) -> ConfigFile:
+		return cls(blizini.load(data.decode()))
+
+	def __init__(self, _values: Dict[str, str]) -> None:
+		self._values = _values
+
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self._values}>"
 
 
 class BuildConfig(BaseConfig):
 	def __init__(self, _values):
-		self._values = _values
+		super().__init__(_values)
 		self.root = self._values.get("root", "")
 		self.install = self._values.get("install", "")
 		self.download = self._values.get("download", "")
@@ -31,8 +42,8 @@ class BuildConfig(BaseConfig):
 
 
 class CDNConfig(BaseConfig):
-	def __init__(self, _values):
-		self._values = _values
+	def __init__(self, _values) -> None:
+		super().__init__(_values)
 		self.archive_group = self._values.get("archive-group", "")
 		self.patch_archive_group = self._values.get("patch-archive-group", "")
 
@@ -46,8 +57,8 @@ class CDNConfig(BaseConfig):
 
 
 class PatchConfig(BaseConfig):
-	def __init__(self, _values):
-		self._values = _values
+	def __init__(self, _values) -> None:
+		super().__init__(_values)
 		self.patch = self._values.get("patch", "")
 
 	@property
