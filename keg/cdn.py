@@ -15,6 +15,30 @@ from .utils import partition_hash, verify_data
 DEFAULT_CONFIG_PATH = "tpr/configs/data"
 
 
+def get_config_path(key: str) -> str:
+	return f"/config/{partition_hash(key)}"
+
+
+def get_data_path(key: str) -> str:
+	return f"/data/{partition_hash(key)}"
+
+
+def get_data_index_path(key: str) -> str:
+	return get_data_path(key) + ".index"
+
+
+def get_patch_path(key: str) -> str:
+	return f"/patch/{partition_hash(key)}"
+
+
+def get_patch_index_path(key: str) -> str:
+	return get_patch_path(key) + ".index"
+
+
+def get_config_item_path(key: str) -> str:
+	return f"/{partition_hash(key)}"
+
+
 class BaseCDN:
 	def get_item(self, path: str):
 		raise NotImplementedError()
@@ -23,29 +47,29 @@ class BaseCDN:
 		raise NotImplementedError()
 
 	def fetch_config(self, key: str, verify: bool=False) -> bytes:
-		with self.get_item(f"/config/{partition_hash(key)}") as resp:
+		with self.get_item(get_config_path(key)) as resp:
 			data = resp.read()
 		verify_data("config file", data, key, verify)
 		return data
 
 	def fetch_config_data(self, key: str, verify: bool=False) -> bytes:
-		with self.get_config_item("/" + partition_hash(key)) as resp:
+		with self.get_config_item(get_config_item_path(key)) as resp:
 			data = resp.read()
-		verify_data("config data", data, key, verify)
+		verify_data("config item", data, key, verify)
 		return data
 
 	def fetch_index(self, key: str, verify: bool=False) -> bytes:
-		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
+		with self.get_item(get_data_index_path(key)) as resp:
 			return resp.read()
 
 	def fetch_patch(self, key: str, verify: bool=False) -> bytes:
-		with self.get_item(f"/patch/{partition_hash(key)}") as resp:
+		with self.get_item(get_patch_path(key)) as resp:
 			data = resp.read()
 		verify_data("patch file", data, key, verify)
 		return data
 
 	def fetch_patch_index(self, key: str, verify: bool=False) -> bytes:
-		with self.get_item(f"/data/{partition_hash(key)}.index") as resp:
+		with self.get_item(get_patch_index_path(key)) as resp:
 			data = resp.read()
 		verify_data("patch index", data[-28:], key, verify)
 		return data
@@ -74,7 +98,7 @@ class BaseCDN:
 		return ArchiveIndex(self.fetch_index(key), key, verify=verify)
 
 	def download_data(self, key: str, verify: bool=False) -> IO:
-		return self.get_item(f"/data/{partition_hash(key)}")
+		return self.get_item(get_data_path(key))
 
 
 class RemoteCDN(BaseCDN):
@@ -136,29 +160,26 @@ class LocalCDN(BaseCDN):
 	def exists(self, path: str) -> bool:
 		return os.path.exists(self.get_full_path(path))
 
-	def config_exists(self, path: str) -> bool:
-		return os.path.exists(self.get_config_path(path))
-
 	def has_config(self, key: str) -> bool:
-		return self.exists(f"/config/{partition_hash(key)}")
+		return self.exists(get_config_path(key))
 
 	def has_data(self, key: str) -> bool:
-		return self.exists(f"/data/{partition_hash(key)}")
+		return self.exists(get_data_path(key))
+
+	def has_index(self, key: str) -> bool:
+		return self.exists(get_data_index_path(key))
+
+	def has_patch(self, key: str) -> bool:
+		return self.exists(get_patch_path(key))
+
+	def has_patch_index(self, key: str) -> bool:
+		return self.exists(get_patch_index_path(key))
+
+	def has_config_item(self, key: str) -> bool:
+		return os.path.exists(self.get_config_path(f"/{partition_hash(key)}"))
 
 	def has_fragment(self, key: str) -> bool:
 		return os.path.exists(self.get_fragment_path(key))
-
-	def has_index(self, key: str) -> bool:
-		return self.exists(f"/data/{partition_hash(key)}.index")
-
-	def has_patch(self, key: str) -> bool:
-		return self.exists(f"/patch/{partition_hash(key)}")
-
-	def has_patch_index(self, key: str) -> bool:
-		return self.exists(f"/patch/{partition_hash(key)}.index")
-
-	def has_config_item(self, key: str) -> bool:
-		return self.config_exists(f"/{partition_hash(key)}")
 
 
 class CacheableCDNWrapper(BaseCDN):
@@ -186,7 +207,7 @@ class CacheableCDNWrapper(BaseCDN):
 		return self.local_cdn.get_item(path)
 
 	def get_config_item(self, path: str) -> IO:
-		if not self.local_cdn.config_exists(path):
+		if not self.local_cdn.has_config_item(path):
 			cache_file_path = self.local_cdn.get_config_path(path)
 			remote_path = self.remote_cdn._join_path(self.remote_cdn.config_path, path)
 			response = self.remote_cdn.get_response(remote_path)
