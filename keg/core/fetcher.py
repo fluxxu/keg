@@ -73,35 +73,6 @@ class PatchIndexFetchDirective(FetchDirective):
 	get_full_path = staticmethod(cdn.get_patch_index_path)  # type: ignore
 
 
-class EncodingFetchDirective(DataFetchDirective):
-	obj: EncodingFile
-
-	def get_object(self, item: IO, verify: bool=False) -> EncodingFile:
-		data = blte.load(item, self.key, verify=verify)
-		return EncodingFile(data, self.key, verify=verify)
-
-
-class BuildConfigFetchDirective(ConfigFetchDirective):
-	obj: BuildConfig
-
-	def get_object(self, item: IO, verify: bool=False) -> BuildConfig:
-		return BuildConfig.from_bytes(item.read(), verify=verify)
-
-
-class CDNConfigFetchDirective(ConfigFetchDirective):
-	obj: CDNConfig
-
-	def get_object(self, item: IO, verify: bool=False) -> CDNConfig:
-		return CDNConfig.from_bytes(item.read(), verify=verify)
-
-
-class PatchConfigFetchDirective(ConfigFetchDirective):
-	obj: PatchConfig
-
-	def get_object(self, item: IO, verify: bool=False) -> PatchConfig:
-		return PatchConfig.from_bytes(item.read(), verify=verify)
-
-
 class FetchQueue:
 	def __init__(self, directive_class: Type[FetchDirective]) -> None:
 		self.directive_class = directive_class
