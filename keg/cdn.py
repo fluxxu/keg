@@ -6,8 +6,9 @@ from urllib.parse import urljoin
 import requests
 
 from .archive import Archive, ArchiveIndex
+from .armadillo import ArmadilloKey
 from .configfile import BuildConfig, CDNConfig, PatchConfig
-from .exceptions import NetworkError
+from .exceptions import ArmadilloKeyNotFound, NetworkError
 from .utils import partition_hash, verify_data
 
 
@@ -127,9 +128,10 @@ class RemoteCDN(BaseCDN):
 
 
 class LocalCDN(BaseCDN):
-	def __init__(self, base_dir: str, fragments_dir: str) -> None:
+	def __init__(self, base_dir: str, fragments_dir: str, armadillo_dir: str) -> None:
 		self.base_dir = base_dir
 		self.fragments_dir = fragments_dir
+		self.armadillo_dir = armadillo_dir
 
 	def get_full_path(self, path: str) -> str:
 		return os.path.join(self.base_dir, path.lstrip("/"))
@@ -180,6 +182,23 @@ class LocalCDN(BaseCDN):
 		f = HTTPCacheWrapper(item, cache_file_path)
 		f.close()
 
+	def save_config_item(self, item: IO, path: str) -> None:
+		cache_file_path = self.get_config_path(path)
+		f = HTTPCacheWrapper(item, cache_file_path)
+		f.close()
+
+	def get_decryption_key(self, key_name: str) -> ArmadilloKey:
+		"""
+		Returns an ArmadilloKey instance for the key_name.
+		Raises ArmadilloKeyNotFound if that key is not on disk.
+		"""
+		key_path = os.path.join(self.armadillo_dir, f"{key_name}.ak")
+		if not os.path.exists(key_path):
+			raise ArmadilloKeyNotFound(key_name)
+
+		with open(key_path, "rb") as f:
+			return ArmadilloKey(f.read())
+
 
 class CacheableCDNWrapper(BaseCDN):
 	def __init__(
@@ -188,11 +207,12 @@ class CacheableCDNWrapper(BaseCDN):
 		server: str,
 		path: str,
 		fragments_path: str,
+		armadillo_dir: str,
 		config_path: str=DEFAULT_CONFIG_PATH
 	) -> None:
 		if not os.path.exists(base_dir):
 			os.makedirs(base_dir)
-		self.local_cdn = LocalCDN(base_dir, fragments_path)
+		self.local_cdn = LocalCDN(base_dir, fragments_path, armadillo_dir)
 		self.remote_cdn = RemoteCDN(server, path, config_path)
 
 	def get_item(self, path: str) -> IO:

@@ -2,6 +2,7 @@ from typing import IO, Any, Generator, Optional, Set, Type
 
 from .. import blte, cdn
 from ..archive import ArchiveGroup
+from ..armadillo import ArmadilloKey
 from ..configfile import BuildConfig, CDNConfig, PatchConfig
 from ..encoding import EncodingFile
 from ..http import Versions
@@ -30,18 +31,26 @@ class FetchDirective:
 	def get_object(self, item: IO, verify: bool=False) -> Optional[Any]:
 		return None
 
-	def fetch(self, verify: bool=False) -> IO:
+	def fetch(self, verify: bool=False) -> None:
 		path = self.get_full_path(self.key)
 		if not self.exists():
 			item = self.remote_cdn.get_item(path)
 			self.local_cdn.save_item(item, path)
 
-		item = self.local_cdn.get_item(path)  # Reopen the item locally
-
-		return item
-
 	def exists(self) -> bool:
 		return self.key_exists(self.key, self.local_cdn)
+
+
+class ProductConfigFetchDirective(FetchDirective):
+	@classmethod
+	def key_exists(cls, key: str, local_cdn: cdn.LocalCDN) -> bool:
+		return local_cdn.has_config_item(key)
+
+	def fetch(self, verify: bool=False) -> None:
+		path = cdn.get_config_item_path(self.key)
+		if not self.exists():
+			item = self.remote_cdn.get_config_item(path)
+			self.local_cdn.save_item(item, path)
 
 
 class ConfigFetchDirective(FetchDirective):
@@ -150,6 +159,7 @@ class Fetcher:
 		self.version = version
 		self.verify = verify
 
+		self.product_config_queue = FetchQueue(ProductConfigFetchDirective)
 		self.config_queue = FetchQueue(ConfigFetchDirective)
 		self.index_queue = FetchQueue(DataIndexFetchDirective)
 		self.patch_index_queue = FetchQueue(PatchIndexFetchDirective)
@@ -161,12 +171,28 @@ class Fetcher:
 		self.cdn_config: Optional[CDNConfig] = None
 		self.patch_config: Optional[PatchConfig] = None
 		self.encoding_file: Optional[EncodingFile] = None
+		self.product_config: Optional[dict] = None
+
+		self.decryption_key: Optional[ArmadilloKey] = None
 
 	def fetch_config(
 		self,
 		local_cdn: cdn.LocalCDN,
 		remote_cdn: cdn.RemoteCDN
 	) -> Generator[Drain, None, None]:
+		product_config_key = self.version.product_config
+		self.product_config_queue.add(product_config_key)
+		yield Drain("product config", self.product_config_queue, local_cdn, remote_cdn)
+		if self.version.product_config and local_cdn.has_config_item(product_config_key):
+			self.product_config = local_cdn.get_product_config(product_config_key)
+
+		if self.product_config:
+			decryption_key_name = self.product_config.get("all", {}).get("config", {}).get(
+				"decryption_key_name", ""
+			)
+			if decryption_key_name:
+				self.decryption_key = local_cdn.get_decryption_key(decryption_key_name)
+
 		self.config_queue.add(self.version.build_config)
 		self.config_queue.add(self.version.cdn_config)
 		yield Drain("config items", self.config_queue, local_cdn, remote_cdn)

@@ -1,9 +1,7 @@
 import os
 
 from .. import CacheableHttpRemote
-from ..armadillo import ArmadilloKey
 from ..cdn import LocalCDN
-from ..exceptions import ArmadilloKeyNotFound
 from .config import KegConfig
 from .db import KegDB
 from .statecache import StateCache
@@ -28,7 +26,11 @@ class Keg:
 			self.db = KegDB(":memory:")
 
 		self.config = KegConfig(self.config_path)
-		self.local_cdn = LocalCDN(self.objects_path, self.fragments_path)
+		self.local_cdn = LocalCDN(
+			self.objects_path,
+			self.fragments_path,
+			self.armadillo_dir,
+		)
 
 	def initialize(self) -> bool:
 		if not os.path.exists(self.path):
@@ -60,15 +62,3 @@ class Keg:
 		if "://" not in remote:
 			remote = self.config.default_remote_prefix + remote
 		return remote
-
-	def get_decryption_key(self, key_name: str) -> ArmadilloKey:
-		"""
-		Returns an ArmadilloKey instance for the key_name.
-		Raises ArmadilloKeyNotFound if that key is not on disk.
-		"""
-		key_path = os.path.join(self.armadillo_dir, f"{key_name}.ak")
-		if not os.path.exists(key_path):
-			raise ArmadilloKeyNotFound(key_name)
-
-		with open(key_path, "rb") as f:
-			return ArmadilloKey(f.read())

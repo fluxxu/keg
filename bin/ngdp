@@ -31,6 +31,12 @@ def looks_like_md5(s: str) -> bool:
 	return bool(re.match(r"[0-9a-f]{32}", s))
 
 
+def _close_all_progress_bars():
+	for pb in list(tqdm._instances):
+		pb.clear()
+		pb.close()
+
+
 class RemoteParam(click.ParamType):
 	name = "remote"
 
@@ -101,6 +107,7 @@ class App:
 
 		return CacheableCDNWrapper(
 			base_dir=self.keg.objects_path,
+			armadillo_dir=self.keg.armadillo_dir,
 			server=server,
 			path=path,
 			config_path=config_path,
@@ -131,7 +138,6 @@ class App:
 			pass
 
 		# Update blobs
-
 		bar.set_description_str("Receiving blobs")
 		try:
 			remote.get_blobs()
@@ -148,44 +154,11 @@ class App:
 				# Blobs are optional
 				pass
 
-		# Look at all product configs, find encrypted ones
-		decryption_keys = {}
-		for version in versions:
-			product_key = version.product_config
-
-			if product_key in decryption_keys:
-				continue
-
-			if not product_key:
-				# Legacy support (eg. s1a)
-				# ProductConfig essentially replaced the game blob
-				# If there's no product config, we check the game blob.
-				game_blob = blobs.get("game")
-				if game_blob:
-					product_config = game_blob
-				else:
-					continue
-			else:
-				if not cdn.local_cdn.has_config_item(product_key):
-					bar.set_description_str(f"Receiving product config: {product_key}")
-					cdn.fetch_config_data(product_key, verify=self.verify)
-				product_config = cdn.get_product_config(product_key, verify=self.verify)
-
-			# Check if the version is encrypted.
-			# Best guess: decryption key name is in the product config.
-			decryption_key_name = product_config.get("all", {}).get("config", {}).get(
-				"decryption_key_name", ""
-			)
-			if decryption_key_name and product_key not in decryption_keys:
-				tqdm.write(f"Build {version.build_config} ({version.versions_name}) is encrypted")
-				tqdm.write(f"Decryption key {repr(decryption_key_name)} required")
-				decryption_keys[product_key] = decryption_key_name
-
 		bar.close()
 
-		return cdn, versions, decryption_keys
+		return cdn, versions, blobs
 
-	def fetch_versions(self, versions, remote_cdn, metadata_only):
+	def fetch_versions(self, versions, blobs, remote_cdn, metadata_only):
 		# Versions are often duplicated per region.
 		# In order not to do all the work several times, we dedupe first.
 		deduped_versions = {
@@ -208,20 +181,41 @@ class App:
 
 		for fetcher, bar in fetchers:
 			build_config_key = fetcher.version.build_config
-			for queue in fetcher.fetch_metadata(self.keg.local_cdn, remote_cdn):
-				bar.n = 0
-				bar.total = len(queue)
-				bar.set_description(
-					f"Version {fetcher.version.build_config}: Fetching {queue.name}"
-				)
-				for item in queue.drain():
-					item_bar.set_description_str(f"Downloading: {item.key}")
-					try:
-						item.fetch()
-					except NetworkError as e:
-						tqdm.write(str(e), sys.stderr)
-					item_bar.update()
-					bar.update()
+
+			try:
+				for queue in fetcher.fetch_metadata(self.keg.local_cdn, remote_cdn):
+					bar.n = 0
+					bar.total = len(queue)
+					bar.set_description(
+						f"Version {fetcher.version.build_config}: Fetching {queue.name}"
+					)
+					for item in queue.drain():
+						item_bar.set_description_str(f"Downloading: {item.key}")
+						try:
+							item.fetch()
+						except NetworkError as e:
+							tqdm.write(str(e), sys.stderr)
+						item_bar.update()
+						bar.update()
+
+					if queue.name == "product config" and not fetcher.version.product_config:
+						# Backwards compatibility!
+						# ProductConfig essentially replaced the game blob.
+						# But for some old repos (eg. s1a), there's no ProductConfig yet.
+						# This matters because we need the decryption key name from there.
+						# So we override the fetcher's product_config with the game blob.
+						game_blob = blobs.get("game", {})
+						if game_blob:
+							tqdm.write("Using legacy ProductConfig support")
+							fetcher.product_config = game_blob
+			except ArmadilloKeyNotFound as e:
+				_close_all_progress_bars()
+				raise click.ClickException(f"Decryption key not found: {str(e)}")
+
+			# if decryption_key_name and product_key not in decryption_keys:
+			# 	tqdm.write(f"Build {version.build_config} ({version.versions_name}) is encrypted")
+			# 	tqdm.write(f"Decryption key {repr(decryption_key_name)} required")
+			# 	decryption_keys[product_key] = decryption_key_name
 
 			if metadata_only:
 				tqdm.write(f"Version {build_config_key}: Metadata updated.")
@@ -285,17 +279,17 @@ def init(ctx):
 def fetch(ctx, remote, metadata_only=True):
 	click.echo(f"Fetching {remote}")
 	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
-	remote_cdn, versions, decryption_key_names = ctx.obj.fetch_stateful_data(http_remote)
+	remote_cdn, versions, blobs = ctx.obj.fetch_stateful_data(http_remote)
 
-	decryption_keys = {}
-	for product_config, key_name in decryption_key_names.items():
-		try:
-			decryption_keys[key_name] = ctx.obj.keg.get_decryption_key(key_name)
-		except ArmadilloKeyNotFound:
-			click.echo(f"Repository is encrypted with unknown key {key_name}. Aborting.")
-			return
+	# decryption_keys = {}
+	# for product_config, key_name in decryption_key_names.items():
+	# 	try:
+	# 		decryption_keys[key_name] = ctx.obj.keg.get_decryption_key(key_name)
+	# 	except ArmadilloKeyNotFound:
+	# 		click.echo(f"Repository is encrypted with unknown key {key_name}. Aborting.")
+	# 		return
 
-	ctx.obj.fetch_versions(versions, remote_cdn, metadata_only)
+	ctx.obj.fetch_versions(versions, blobs, remote_cdn, metadata_only)
 
 
 @main.command("fetch-all")
@@ -319,7 +313,7 @@ def force_fetch(ctx, remote, version_keys, metadata_only):
 		psvfile = ctx.obj.keg.state_cache.read_psv("/versions", version_key)
 		versions = [Versions(row) for row in psvfile]
 
-		ctx.obj.fetch_versions(versions, remote_cdn, metadata_only)
+		ctx.obj.fetch_versions(versions, {}, remote_cdn, metadata_only)
 
 
 @main.command("fetch-object")
