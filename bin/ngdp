@@ -6,7 +6,6 @@ import re
 from datetime import datetime
 from glob import iglob
 from io import BytesIO, StringIO
-from typing import Set
 from urllib.parse import urlparse
 
 import click
@@ -18,6 +17,7 @@ from keg import CacheableHttpRemote, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.build import BuildManager
 from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
+from keg.core.fetcher import Fetcher
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
 from keg.exceptions import (
@@ -70,24 +70,6 @@ class App:
 
 		return tabulate(table, headers=headers, tablefmt=self.table_format)
 
-	def _download(self, message: str, iterable: Set[str], callback):
-		if not iterable:
-			print(message, "Up-to-date.")
-			return
-
-		bar = tqdm(unit="files", ncols=0, leave=False, total=len(iterable))
-
-		for key in iterable:
-			bar.set_description(message + " " + key)
-			try:
-				callback(key, verify=self.verify)
-			except NetworkError as e:
-				tqdm.write(f"WARNING: {str(e)}", sys.stderr)
-			bar.update()
-		bar.close()
-
-		print(message, "Done.")
-
 	def _choose_cdn(self, cdns) -> CacheableCDNWrapper:
 		if self.force_cdn:
 			url = urlparse(self.force_cdn)
@@ -111,7 +93,7 @@ class App:
 			else:
 				cdn = cdns[0]
 
-			tqdm.write(f"Using {cdn.name} (available: {available_cdns})")
+			tqdm.write(f"Using CDN: {cdn.name} (available: {available_cdns})")
 			assert cdn.all_servers
 			server = cdn.all_servers[0]
 			path = cdn.path
@@ -203,133 +185,77 @@ class App:
 
 		return cdn, versions, decryption_keys
 
-	def fetch(self, cdn, versions, metadata_only: bool=False):
-		# Regions are often duplicated per region.
+	def fetch_versions(self, versions, remote_cdn, metadata_only):
+		# Versions are often duplicated per region.
 		# In order not to do all the work several times, we dedupe first.
 		deduped_versions = {
 			f"{v.build_config}:{v.cdn_config}:{v.product_config}": v for v in versions
 		}
 		versions = list(deduped_versions.values())
 
-		config_to_fetch = set()
-		for version in versions:
-			if not cdn.local_cdn.has_config(version.build_config):
-				config_to_fetch.add(version.build_config)
-			if not cdn.local_cdn.has_config(version.cdn_config):
-				config_to_fetch.add(version.cdn_config)
+		item_bar = tqdm(unit="", leave=False, bar_format="", postfix="", position=0)
+		fetchers = [(
+			Fetcher(version),
+			tqdm(
+				leave=False,
+				unit="",
+				desc=f"Version {version.build_config}: Waiting.",
+				bar_format="{desc}{n_fmt}/{total_fmt}",
+				postfix="",
+				position=i + 1,
+			)
+		) for i, version in enumerate(versions)]
 
-		self._download("Fetching config...", config_to_fetch, cdn.fetch_config)
-
-		indices_to_fetch = set()
-		patch_indices_to_fetch = set()
-		for version in versions:
-			try:
-				cdn_config = cdn.get_cdn_config(version.cdn_config, verify=self.verify)
-			except NetworkError:
-				tqdm.write(f"WARNING: Cannot get CDN config {version.cdn_config}. Skipping.")
-			else:
-				for archive_key in cdn_config.archives:
-					if not cdn.local_cdn.has_index(archive_key):
-						indices_to_fetch.add(archive_key)
-
-			try:
-				build_config = cdn.get_build_config(version.build_config, verify=self.verify)
-			except NetworkError as e:
-				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
-				continue
-
-			# Download patch files
-			if build_config.patch_config:
-				key = build_config.patch_config
-				try:
-					patch_config = cdn.get_patch_config(key, verify=self.verify)
-				except NetworkError as e:
-					tqdm.write(f"WARNING: Cannot get patch config {key}. Skipping.", sys.stderr)
-				else:
-					for patch_entry in patch_config.patch_entries:
-						for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-							if not cdn.local_cdn.has_patch_index(patch_key):
-								patch_indices_to_fetch.add(patch_key)
-
-		self._download("Fetching indices...", indices_to_fetch, cdn.fetch_index)
-		self._download("Fetching patch indices...", indices_to_fetch, cdn.fetch_patch_index)
-
-		if metadata_only:
-			return
-
-		archives_to_fetch = set()
-		loose_files_to_fetch = set()
-		patch_files_to_fetch = set()
-		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
-		for version in versions:
-			msg = f"Preparing version {version.build_config}"
-
-			bar.set_description_str(f"{msg}: Retrieving build configuration")
-			try:
-				build = BuildManager(
-					version.build_config, version.cdn_config, cdn, verify=self.verify
+		for fetcher, bar in fetchers:
+			build_config_key = fetcher.version.build_config
+			for queue in fetcher.fetch_metadata(self.keg.local_cdn, remote_cdn):
+				bar.n = 0
+				bar.total = len(queue)
+				bar.set_description(
+					f"Version {fetcher.version.build_config}: Fetching {queue.name}"
 				)
-			except NetworkError as e:
-				tqdm.write(f"WARNING: Cannot get build config {version.build_config}.")
-				continue
+				for item in queue.drain():
+					item_bar.set_description_str(f"Downloading: {item.key}")
+					try:
+						item.fetch()
+					except NetworkError as e:
+						tqdm.write(str(e), sys.stderr)
+					item_bar.update()
+					bar.update()
 
-			# get the archive list
-			for archive in build.cdn_config.archives:
-				if not cdn.local_cdn.has_data(archive):
-					archives_to_fetch.add(archive)
+			if metadata_only:
+				tqdm.write(f"Version {build_config_key}: Metadata updated.")
+				bar.close()
+			else:
+				bar.n = 0
+				bar.total = 0
+				bar.bar_format = "{desc}"
+				bar.set_description_str(f"Version {build_config_key}: Waiting for data...")
 
-			# Create the merged archive group
-			bar.set_description_str(f"{msg}: Creating merged archive")
-			archive_group = build.get_archive_group()
-
-			bar.set_description_str(f"{msg}: Retrieving encoding file")
-			try:
-				encoding_file = build.get_encoding()
-			except NetworkError:
-				tqdm.write(f"WARNING: Cannot get encoding file {build.build_config.encodings}.")
-				encoding_file = None
-
-			if encoding_file:
-				# Download loose files
-				bar.set_description_str("Parsing encoding file")
-				for key, spec in encoding_file.encoding_keys:
-					if not archive_group.has_file(key) and not cdn.local_cdn.has_data(key):
-						loose_files_to_fetch.add(key)
-
-			# Download patch files
-			if build_config.patch_config:
-				bar.set_description_str(f"{msg}: Retrieving patch configuration")
-				try:
-					patch_config = cdn.get_patch_config(
-						build_config.patch_config, verify=self.verify
+		if not metadata_only:
+			for fetcher, bar in fetchers:
+				for queue in fetcher.fetch_data(self.keg.local_cdn, remote_cdn):
+					bar.bar_format = "{desc}{n_fmt}/{total_fmt}"
+					bar.n = 0
+					bar.total = len(queue)
+					bar.set_description(
+						f"Version {fetcher.version.build_config}: Fetching {queue.name}"
 					)
-				except NetworkError:
-					tqdm.write(f"WARNING: Cannot get patch config {key}. Skipping.", sys.stderr)
-				else:
-					for patch_entry in patch_config.patch_entries:
-						for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-							if not cdn.local_cdn.has_patch(patch_key):
-								patch_files_to_fetch.add(patch_key)
 
-		bar.close()
+					for item in queue.drain():
+						item_bar.set_description_str(f"Downloading: {item.key}")
+						try:
+							item.fetch()
+						except NetworkError as e:
+							tqdm.write(str(e), sys.stderr)
+						bar.update()
+						bar.refresh()
+						item_bar.update()
 
-		self._download(
-			"Fetching archives...", archives_to_fetch, cdn.download_data
-		)
-		self._download(
-			"Fetching loose files...", loose_files_to_fetch, cdn.download_data
-		)
-		self._download(
-			"Fetching patch files...", patch_files_to_fetch, cdn.fetch_patch
-		)
+				tqdm.write(f"Version {fetcher.version.build_config}: Done.")
+				bar.close()
 
-		# whats left?
-		# metadata:
-		# - root
-		# - install
-		# - patch files
-		#   - patch manifest
-		#   - files referenced by patch
+		item_bar.close()
 
 
 @click.group()
@@ -359,7 +285,7 @@ def init(ctx):
 def fetch(ctx, remote, metadata_only=True):
 	click.echo(f"Fetching {remote}")
 	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
-	cdn, versions, decryption_key_names = ctx.obj.fetch_stateful_data(http_remote)
+	remote_cdn, versions, decryption_key_names = ctx.obj.fetch_stateful_data(http_remote)
 
 	decryption_keys = {}
 	for product_config, key_name in decryption_key_names.items():
@@ -369,7 +295,7 @@ def fetch(ctx, remote, metadata_only=True):
 			click.echo(f"Repository is encrypted with unknown key {key_name}. Aborting.")
 			return
 
-	ctx.obj.fetch(cdn, versions, metadata_only)
+	ctx.obj.fetch_versions(versions, remote_cdn, metadata_only)
 
 
 @main.command("fetch-all")
@@ -387,16 +313,13 @@ def fetch_all(ctx, metadata_only=True):
 @click.pass_context
 def force_fetch(ctx, remote, version_keys, metadata_only):
 	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(http_remote.get_cached_cdns())
+	remote_cdn = ctx.obj._choose_cdn(http_remote.get_cached_cdns())
 
 	for version_key in version_keys:
 		psvfile = ctx.obj.keg.state_cache.read_psv("/versions", version_key)
 		versions = [Versions(row) for row in psvfile]
 
-		try:
-			ctx.obj.fetch(cdn, versions, metadata_only)
-		except IntegrityVerificationError as e:
-			raise click.ClickException(str(e))
+		ctx.obj.fetch_versions(versions, remote_cdn, metadata_only)
 
 
 @main.command("fetch-object")
