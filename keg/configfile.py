@@ -47,6 +47,7 @@ class BuildConfig(BaseConfig):
 		self.root = self._values.get("root", "")
 		self.install = parse_key_pair(self._values.get("install", ""))
 		self.download = parse_key_pair(self._values.get("download", ""))
+		self.size = parse_key_pair(self._values.get("size", ""))  # Size file
 		self.encoding = parse_key_pair(self._values.get("encoding", ""))
 		self.patch = self._values.get("patch", "")
 		self.patch_config = self._values.get("patch-config", "")

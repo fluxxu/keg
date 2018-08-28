@@ -243,6 +243,10 @@ class Fetcher:
 						data, self.build_config.encoding.content_key, verify=self.verify
 					)
 
+			if self.build_config.size.encoding_key:
+				self.loose_file_queue.add(self.build_config.size.encoding_key)
+				yield Drain("size file", self.loose_file_queue, local_cdn, remote_cdn)
+
 		if self.patch_index_queue:
 			yield Drain("patch indices", self.patch_index_queue, local_cdn, remote_cdn)
 
