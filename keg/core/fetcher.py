@@ -1,3 +1,4 @@
+from io import BytesIO
 from typing import IO, Any, Generator, Optional, Set, Type
 
 from .. import blte, cdn
@@ -21,12 +22,13 @@ class FetchDirective:
 		self,
 		key: str,
 		local_cdn: cdn.LocalCDN,
-		remote_cdn: cdn.RemoteCDN
+		remote_cdn: cdn.RemoteCDN,
+		decryption_key: ArmadilloKey=None
 	) -> None:
 		self.key = key
 		self.local_cdn = local_cdn
 		self.remote_cdn = remote_cdn
-		self.obj: Optional[Any] = None
+		self.decryption_key = decryption_key
 
 	def get_object(self, item: IO, verify: bool=False) -> Optional[Any]:
 		return None
@@ -35,6 +37,8 @@ class FetchDirective:
 		path = self.get_full_path(self.key)
 		if not self.exists():
 			item = self.remote_cdn.get_item(path)
+			if self.decryption_key:
+				item = BytesIO(self.decryption_key.decrypt_object(self.key, item.read()))
 			self.local_cdn.save_item(item, path)
 
 	def exists(self) -> bool:
@@ -89,11 +93,14 @@ class FetchQueue:
 	def drain(
 		self,
 		local_cdn: cdn.LocalCDN,
-		remote_cdn: cdn.RemoteCDN
+		remote_cdn: cdn.RemoteCDN,
+		decryption_key: ArmadilloKey=None
 	) -> Generator[FetchDirective, None, None]:
 		for key in sorted(self._queue):
 			if not self.exists(key, local_cdn):
-				yield self.directive_class(key, local_cdn, remote_cdn)
+				yield self.directive_class(
+					key, local_cdn, remote_cdn, decryption_key
+				)
 				self.drained += 1
 			self._queue.remove(key)
 
@@ -104,12 +111,14 @@ class Drain:
 		name: str,
 		queue: FetchQueue,
 		local_cdn: cdn.LocalCDN,
-		remote_cdn: cdn.RemoteCDN
+		remote_cdn: cdn.RemoteCDN,
+		decryption_key: ArmadilloKey=None
 	) -> None:
 		self.name = name
 		self.queue = queue
 		self.local_cdn = local_cdn
 		self.remote_cdn = remote_cdn
+		self.decryption_key = decryption_key
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__}: {self.name} ({len(self)} items)>"
@@ -118,7 +127,7 @@ class Drain:
 		return len(self.queue._queue)
 
 	def drain(self) -> Generator[FetchDirective, None, None]:
-		yield from self.queue.drain(self.local_cdn, self.remote_cdn)
+		yield from self.queue.drain(self.local_cdn, self.remote_cdn, self.decryption_key)
 
 
 class Fetcher:
@@ -166,7 +175,9 @@ class Fetcher:
 
 		self.config_queue.add(self.version.build_config)
 		self.config_queue.add(self.version.cdn_config)
-		yield Drain("config items", self.config_queue, local_cdn, remote_cdn)
+		yield Drain(
+			"config items", self.config_queue, local_cdn, remote_cdn, self.decryption_key
+		)
 
 		if local_cdn.has_config(self.version.build_config):
 			self.build_config = local_cdn.get_build_config(
