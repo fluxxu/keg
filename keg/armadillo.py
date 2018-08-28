@@ -41,6 +41,6 @@ class ArmadilloKey:
 		return f"<{self.__class__.__name__}: {b32encode(self.data)}>"
 
 	def decrypt_object(self, key: str, data: bytes) -> bytes:
-		nonce = unhexlify(key)[:-8]
+		nonce = unhexlify(key)[-8:]
 		cipher = Salsa20.new(key=self.key, nonce=nonce)
 		return cipher.decrypt(data)
