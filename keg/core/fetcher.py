@@ -100,7 +100,8 @@ class FetchQueue:
 		self.drained = 0
 
 	def add(self, key: str) -> None:
-		self._queue.add(key)
+		if key:
+			self._queue.add(key)
 
 	def exists(self, key: str, local_cdn: cdn.LocalCDN) -> bool:
 		return self.directive_class.key_exists(key, local_cdn)
