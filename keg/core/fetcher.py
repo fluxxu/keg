@@ -203,11 +203,14 @@ class Fetcher:
 				self.index_queue.add(archive_key)
 			yield Drain("archive indices", self.index_queue, local_cdn, remote_cdn)
 
+			for patch_archive_key in self.cdn_config.patch_archives:
+				self.patch_queue.add(patch_archive_key)
+				self.patch_index_queue.add(patch_archive_key)
+
 		if self.build_config:
 			if self.patch_config:
 				for patch_entry in self.patch_config.patch_entries:
 					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-						# self.patch_index_queue.add(patch_key)  # FIXME
 						self.patch_queue.add(patch_key)
 
 			_, encoding_key = self.build_config.encodings
@@ -218,8 +221,8 @@ class Fetcher:
 					data = blte.load(local_cdn.download_data(encoding_key), encoding_key)
 					self.encoding_file = EncodingFile(data, encoding_key, verify=self.verify)
 
-			if self.patch_index_queue:
-				yield Drain("patch indices", self.patch_index_queue, local_cdn, remote_cdn)
+		if self.patch_index_queue:
+			yield Drain("patch indices", self.patch_index_queue, local_cdn, remote_cdn)
 
 	def fetch_data(
 		self,
