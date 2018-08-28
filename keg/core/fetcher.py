@@ -201,11 +201,18 @@ class Fetcher:
 			for archive_key in self.cdn_config.archives:
 				self.archive_queue.add(archive_key)
 				self.index_queue.add(archive_key)
+
+			if self.cdn_config.file_index:
+				self.index_queue.add(self.cdn_config.file_index)
+
 			yield Drain("archive indices", self.index_queue, local_cdn, remote_cdn)
 
 			for patch_archive_key in self.cdn_config.patch_archives:
 				self.patch_queue.add(patch_archive_key)
 				self.patch_index_queue.add(patch_archive_key)
+
+			if self.cdn_config.patch_file_index:
+				self.patch_index_queue.add(self.cdn_config.patch_file_index)
 
 		if self.build_config:
 			if self.patch_config:

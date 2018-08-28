@@ -46,6 +46,8 @@ class CDNConfig(BaseConfig):
 		super().__init__(_values)
 		self.archive_group = self._values.get("archive-group", "")
 		self.patch_archive_group = self._values.get("patch-archive-group", "")
+		self.file_index = self._values.get("file-index", "")
+		self.patch_file_index = self._values.get("patch-file-index", "")
 
 	@property
 	def archives(self):
