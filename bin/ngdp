@@ -168,7 +168,7 @@ class App:
 
 		item_bar = tqdm(unit="", leave=False, bar_format="", postfix="", position=0)
 		fetchers = [(
-			Fetcher(version),
+			Fetcher(version, verify=self.verify),
 			tqdm(
 				leave=False,
 				unit="",
