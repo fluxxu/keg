@@ -1,7 +1,29 @@
-from typing import Dict, Iterable, Tuple, Type, TypeVar
+from collections import namedtuple
+from typing import Dict, Iterable, Type, TypeVar
 
 from . import blizini
 from .patch import PatchEntry
+
+
+# A content/encoding key pair
+KeyPair = namedtuple("KeyPair", ["content_key", "encoding_key"])
+
+
+def parse_key_pair(value: str) -> KeyPair:
+	"""
+	Parse a string that contains two or less hashes into a KeyPair
+	"""
+	pair = value.split()
+	if len(pair) > 2:
+		raise ValueError(f"Invalid KeyPair: {repr(pair)}")
+	elif len(pair) == 2:
+		content_key, encoding_key = pair
+	elif len(pair) == 1:
+		content_key, encoding_key = pair[0], ""
+	elif not pair:
+		content_key, encoding_key = "", ""
+
+	return KeyPair(content_key=content_key, encoding_key=encoding_key)
 
 
 ConfigFile = TypeVar("ConfigFile", bound="BaseConfig")
@@ -23,22 +45,14 @@ class BuildConfig(BaseConfig):
 	def __init__(self, _values):
 		super().__init__(_values)
 		self.root = self._values.get("root", "")
-		self.install = self._values.get("install", "")
-		self.download = self._values.get("download", "")
+		self.install = parse_key_pair(self._values.get("install", ""))
+		self.download = parse_key_pair(self._values.get("download", ""))
+		self.encoding = parse_key_pair(self._values.get("encoding", ""))
 		self.patch = self._values.get("patch", "")
 		self.patch_config = self._values.get("patch-config", "")
 		self.build_name = self._values.get("build-name", "")
 		self.build_product = self._values.get("build-product", "")
 		self.build_uid = self._values.get("build-uid", "")
-
-	@property
-	def encodings(self) -> Tuple[str, str]:
-		ret = self._values.get("encoding", "").split()[:2]
-		if not ret:
-			return "", ""
-		elif len(ret) == 1:
-			return ret[0], ""
-		return ret[0], ret[1]
 
 
 class CDNConfig(BaseConfig):

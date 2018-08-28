@@ -393,8 +393,7 @@ def add_object(ctx, paths, type, remote):
 					for key, _, _ in archive_index.items:
 						indexed_keys.add(key)
 
-			ckey, ekey = build.build_config.encodings
-			encoding_keys.add(ekey)
+			encoding_keys.add(build.build_config.encoding.encoding_key)
 			try:
 				encoding_file = build.get_encoding()
 			except FileNotFoundError:

@@ -229,13 +229,19 @@ class Fetcher:
 					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
 						self.patch_queue.add(patch_key)
 
-			_, encoding_key = self.build_config.encodings
-			if encoding_key:
-				self.loose_file_queue.add(encoding_key)
+			encoding = self.build_config.encoding
+			if encoding.encoding_key:
+				self.loose_file_queue.add(encoding.encoding_key)
 				yield Drain("encoding file", self.loose_file_queue, local_cdn, remote_cdn)
-				if local_cdn.has_data(encoding_key):
-					data = blte.load(local_cdn.download_data(encoding_key), encoding_key)
-					self.encoding_file = EncodingFile(data, encoding_key, verify=self.verify)
+				if local_cdn.has_data(encoding.encoding_key):
+					data = blte.load(
+						local_cdn.download_data(encoding.encoding_key),
+						encoding.encoding_key,
+						verify=self.verify
+					)
+					self.encoding_file = EncodingFile(
+						data, self.build_config.encoding.content_key, verify=self.verify
+					)
 
 		if self.patch_index_queue:
 			yield Drain("patch indices", self.patch_index_queue, local_cdn, remote_cdn)
