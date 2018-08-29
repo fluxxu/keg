@@ -989,6 +989,7 @@ def list_archive_fragments(ctx, archive_keys_or_paths):
 			if os.path.exists(real_path):
 				return real_path
 
+	items = []
 	for key_or_path in archive_keys_or_paths:
 		real_path = get_actual_path(key_or_path)
 		if not real_path:
@@ -1002,11 +1003,12 @@ def list_archive_fragments(ctx, archive_keys_or_paths):
 			data = f.read()
 
 		archive_index = ArchiveIndex(data, key, verify=ctx.obj.verify)
+		items += list(archive_index.items)
 
-		click.secho(
-			ctx.obj.tabulate(archive_index.items, headers=("Key", "Size", "Offset")),
-			fg="black", bold=True
-		)
+	click.secho(
+		ctx.obj.tabulate(items, headers=("Key", "Size", "Offset")),
+		fg="black", bold=True
+	)
 
 
 if __name__ == "__main__":
