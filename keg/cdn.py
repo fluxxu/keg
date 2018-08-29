@@ -210,40 +210,6 @@ class LocalCDN(BaseCDN):
 		os.rename(temp_path, path)
 
 
-class CacheableCDNWrapper(BaseCDN):
-	def __init__(
-		self,
-		base_dir: str,
-		server: str,
-		path: str,
-		fragments_path: str,
-		armadillo_dir: str,
-		config_path: str=DEFAULT_CONFIG_PATH
-	) -> None:
-		if not os.path.exists(base_dir):
-			os.makedirs(base_dir)
-		self.local_cdn = LocalCDN(base_dir, fragments_path, armadillo_dir)
-		self.remote_cdn = RemoteCDN(server, path, config_path)
-
-	def get_item(self, path: str) -> IO:
-		if not self.local_cdn.exists(path):
-			remote_path = self.remote_cdn._join_path(self.remote_cdn.path, path)
-			response = self.remote_cdn.get_response(remote_path)
-			self.local_cdn.save_item(response.raw, path)
-
-		return self.local_cdn.get_item(path)
-
-	def get_config_item(self, path: str) -> IO:
-		if not self.local_cdn.has_config_item(path):
-			cache_file_path = self.local_cdn.get_config_path(path)
-			remote_path = self.remote_cdn._join_path(self.remote_cdn.config_path, path)
-			response = self.remote_cdn.get_response(remote_path)
-			f = HTTPCacheWrapper(response.raw, cache_file_path)
-			f.close()
-
-		return self.local_cdn.get_config_item(path)
-
-
 class HTTPCacheWrapper:
 	def __init__(self, fp: IO, path: str) -> None:
 		self.fp = fp

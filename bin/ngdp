@@ -16,7 +16,7 @@ from tqdm import tqdm
 from keg import CacheableHttpRemote, blte, psv
 from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.build import BuildManager
-from keg.cdn import DEFAULT_CONFIG_PATH, CacheableCDNWrapper
+from keg.cdn import DEFAULT_CONFIG_PATH, RemoteCDN
 from keg.core.fetcher import Fetcher
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
@@ -76,7 +76,7 @@ class App:
 
 		return tabulate(table, headers=headers, tablefmt=self.table_format)
 
-	def _choose_cdn(self, cdns) -> CacheableCDNWrapper:
+	def _choose_cdn(self, cdns) -> RemoteCDN:
 		if self.force_cdn:
 			url = urlparse(self.force_cdn)
 			if not url.scheme or not url.netloc or not url.path:
@@ -105,14 +105,7 @@ class App:
 			path = cdn.path
 			config_path = cdn.config_path
 
-		return CacheableCDNWrapper(
-			base_dir=self.keg.objects_path,
-			armadillo_dir=self.keg.armadillo_dir,
-			server=server,
-			path=path,
-			config_path=config_path,
-			fragments_path=self.keg.fragments_path,
-		)
+		return RemoteCDN(server, path, config_path)
 
 	def fetch_stateful_data(self, remote: CacheableHttpRemote):
 		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
@@ -123,8 +116,6 @@ class App:
 			cdns = remote.get_cdns()
 		except NetworkError:
 			raise click.ClickException(f"NGDP repository {remote.remote} not found")
-
-		cdn = self._choose_cdn(cdns)
 
 		# Find all available versions
 		bar.set_description_str("Receiving version list")
@@ -156,7 +147,7 @@ class App:
 
 		bar.close()
 
-		return cdn, versions, blobs
+		return cdns, versions, blobs
 
 	def fetch_versions(self, versions, blobs, remote_cdn, metadata_only):
 		# Versions are often duplicated per region.
@@ -217,11 +208,6 @@ class App:
 			except ArmadilloKeyNotFound as e:
 				_close_all_progress_bars()
 				raise click.ClickException(f"Decryption key not found: {str(e)}")
-
-			# if decryption_key_name and product_key not in decryption_keys:
-			# 	tqdm.write(f"Build {version.build_config} ({version.versions_name}) is encrypted")
-			# 	tqdm.write(f"Decryption key {repr(decryption_key_name)} required")
-			# 	decryption_keys[product_key] = decryption_key_name
 
 			if metadata_only:
 				tqdm.write(f"Version {build_config_key}: Metadata updated.")
@@ -285,15 +271,8 @@ def init(ctx):
 def fetch(ctx, remote, metadata_only=True):
 	click.echo(f"Fetching {remote}")
 	http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
-	remote_cdn, versions, blobs = ctx.obj.fetch_stateful_data(http_remote)
-
-	# decryption_keys = {}
-	# for product_config, key_name in decryption_key_names.items():
-	# 	try:
-	# 		decryption_keys[key_name] = ctx.obj.keg.get_decryption_key(key_name)
-	# 	except ArmadilloKeyNotFound:
-	# 		click.echo(f"Repository is encrypted with unknown key {key_name}. Aborting.")
-	# 		return
+	cdns, versions, blobs = ctx.obj.fetch_stateful_data(http_remote)
+	remote_cdn = ctx.obj._choose_cdn(cdns)
 
 	ctx.obj.fetch_versions(versions, blobs, remote_cdn, metadata_only)
 
