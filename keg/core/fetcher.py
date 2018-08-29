@@ -118,6 +118,11 @@ class PatchIndexFetchDirective(FetchDirective):
 		verify_data("patch index", fp.read(), self.key, verify=True)
 
 
+class SignatureFileFetchDirective(LooseFileFetchDirective):
+	def verify(self, fp: IO) -> None:
+		verify_data("signature file", fp.read(), self.key, verify=True)
+
+
 class FetchQueue:
 	"""
 	A FetchQueue holds a set of keys, and a directive class.
@@ -203,6 +208,7 @@ class Fetcher:
 		self.patch_index_queue = FetchQueue(PatchIndexFetchDirective)
 		self.archive_queue = FetchQueue(ArchiveFetchDirective)
 		self.loose_file_queue = FetchQueue(LooseFileFetchDirective)
+		self.signature_file_queue = FetchQueue(SignatureFileFetchDirective)
 		self.patch_queue = FetchQueue(PatchFetchDirective)
 
 		self.build_config: Optional[BuildConfig] = None
@@ -309,6 +315,10 @@ class Fetcher:
 			if self.build_config.size.encoding_key:
 				self.loose_file_queue.add(self.build_config.size.encoding_key)
 				yield Drain("size file", self.loose_file_queue, self)
+
+			if self.build_config.build_signature_file:
+				self.signature_file_queue.add(self.build_config.build_signature_file)
+				yield Drain("signature file", self.signature_file_queue, self)
 
 		if self.patch_index_queue:
 			yield Drain("patch indices", self.patch_index_queue, self)

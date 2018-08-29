@@ -54,6 +54,7 @@ class BuildConfig(BaseConfig):
 		self.build_name = self._values.get("build-name", "")
 		self.build_product = self._values.get("build-product", "")
 		self.build_uid = self._values.get("build-uid", "")
+		self.build_signature_file = self._values.get("build-signature-file", "")
 
 
 class CDNConfig(BaseConfig):
