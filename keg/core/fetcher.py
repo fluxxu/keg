@@ -10,8 +10,14 @@ from ..http import Versions
 
 
 class FetchDirective:
+	"""
+	A FetchDirective holds the logic to fetch exactly one remote item.
+	"""
 	@classmethod
 	def key_exists(cls, key: str, local_cdn: cdn.LocalCDN) -> bool:
+		"""
+		Returns True if the key exists on the CDN, False otherwise.
+		"""
 		return local_cdn.exists(cls.get_full_path(key))
 
 	@staticmethod
@@ -23,6 +29,9 @@ class FetchDirective:
 		self.fetcher = fetcher
 
 	def fetch(self, verify: bool=False) -> None:
+		"""
+		Checks if the item is on the LocalCDN. If it's not, this fetches it.
+		"""
 		path = self.get_full_path(self.key)
 		if not self.exists():
 			item = self.fetcher.remote_cdn.get_item(path)
@@ -31,6 +40,9 @@ class FetchDirective:
 			self.fetcher.local_cdn.save_item(item, path)
 
 	def exists(self) -> bool:
+		"""
+		Returns True if the item exists on disk, False otherwise.
+		"""
 		return self.key_exists(self.key, self.fetcher.local_cdn)
 
 
@@ -67,19 +79,34 @@ class PatchIndexFetchDirective(FetchDirective):
 
 
 class FetchQueue:
+	"""
+	A FetchQueue holds a set of keys, and a directive class.
+	Iterate over the drain() method to drain the queue.
+	"""
 	def __init__(self, directive_class: Type[FetchDirective]) -> None:
 		self.directive_class = directive_class
 		self._queue: Set[str] = set()
 		self.drained = 0
+
+	def __len__(self):
+		return len(self._queue)
 
 	def add(self, key: str) -> None:
 		if key:
 			self._queue.add(key)
 
 	def exists(self, key: str, local_cdn: cdn.LocalCDN) -> bool:
+		"""
+		Returns True if the key exists on the CDN, False otherwise.
+		"""
 		return self.directive_class.key_exists(key, local_cdn)
 
 	def drain(self, fetcher: "Fetcher") -> Generator[FetchDirective, None, None]:
+		"""
+		Drains the queue, which generates FetchDirective objects.
+		The objects are of the directive_class passed to the FetchQueue.
+		Call fetch() on those objects to fetch them.
+		"""
 		for key in sorted(self._queue):
 			if not self.exists(key, fetcher.local_cdn):
 				yield self.directive_class(key, fetcher)
@@ -88,6 +115,10 @@ class FetchQueue:
 
 
 class Drain:
+	"""
+	A drain for a FetchQueue (utility binding class).
+	Iterate over the drain() method to drain the queue.
+	"""
 	def __init__(self, name: str, queue: FetchQueue, fetcher: "Fetcher") -> None:
 		self.name = name
 		self.queue = queue
@@ -97,13 +128,21 @@ class Drain:
 		return f"<{self.__class__.__name__}: {self.name} ({len(self)} items)>"
 
 	def __len__(self):
-		return len(self.queue._queue)
+		return len(self.queue)
 
 	def drain(self) -> Generator[FetchDirective, None, None]:
 		yield from self.queue.drain(self.fetcher)
 
 
 class Fetcher:
+	"""
+	A Fetcher manages the fetching process for a specific version of a remote.
+	Instanciate this class with the Version, as well as a local and a remote CDN.
+
+	To fetch, iterate over the `fetch_metadata()` and the `fetch_data()` methods.
+	These generate "queues" (FetchQueue), which can be drained with Queue.drain().
+	This, in turn, generates FetchDirectives, on which you should call fetch().
+	"""
 	def __init__(
 		self,
 		version: Versions,
@@ -133,6 +172,14 @@ class Fetcher:
 		self.decryption_key: Optional[ArmadilloKey] = None
 
 	def fetch_config(self) -> Generator[Drain, None, None]:
+		"""
+		Fetches the ProductConfig, BuildConfig, CDNConfig and PatchConfig.
+		Populates the following attributes as these are fetched:
+		- product_config
+		- build_config
+		- cdn_config
+		- patch_config
+		"""
 		product_config_key = self.version.product_config
 		self.product_config_queue.add(product_config_key)
 		yield Drain("product config", self.product_config_queue, self)
@@ -171,6 +218,13 @@ class Fetcher:
 					)
 
 	def fetch_metadata(self) -> Generator[Drain, None, None]:
+		"""
+		Fetches all metadata for the version:
+		- Config (via fetch_config())
+		- Archive indices
+		- Patch indices
+		- Metafiles (encoding, size)
+		"""
 		yield from self.fetch_config()
 
 		if self.cdn_config:
@@ -218,6 +272,10 @@ class Fetcher:
 			yield Drain("patch indices", self.patch_index_queue, self)
 
 	def fetch_data(self) -> Generator[Drain, None, None]:
+		"""
+		Fetches all data for the version: Archives, loose files and patch files.
+		NOTE: fetch_metadata() must be called before fetch_data().
+		"""
 		if self.cdn_config:
 			archive_group = ArchiveGroup(
 				self.cdn_config.archives,
