@@ -168,7 +168,12 @@ class App:
 
 		item_bar = tqdm(unit="", leave=False, bar_format="", postfix="", position=0)
 		fetchers = [(
-			Fetcher(version, verify=self.verify),
+			Fetcher(
+				version,
+				self.keg.local_cdn,
+				remote_cdn,
+				verify=self.verify,
+			),
 			tqdm(
 				leave=False,
 				unit="",
@@ -183,7 +188,7 @@ class App:
 			build_config_key = fetcher.version.build_config
 
 			try:
-				for queue in fetcher.fetch_metadata(self.keg.local_cdn, remote_cdn):
+				for queue in fetcher.fetch_metadata():
 					bar.n = 0
 					bar.total = len(queue)
 					bar.set_description(
@@ -228,7 +233,7 @@ class App:
 
 		if not metadata_only:
 			for fetcher, bar in fetchers:
-				for queue in fetcher.fetch_data(self.keg.local_cdn, remote_cdn):
+				for queue in fetcher.fetch_data():
 					bar.bar_format = "{desc}{n_fmt}/{total_fmt}"
 					bar.n = 0
 					bar.total = len(queue)
