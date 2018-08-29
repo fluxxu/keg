@@ -179,35 +179,36 @@ class App:
 		for fetcher, bar in fetchers:
 			build_config_key = fetcher.version.build_config
 
-			try:
-				for queue in fetcher.fetch_metadata():
-					bar.n = 0
-					bar.total = len(queue)
-					bar.set_description(
-						f"Version {fetcher.version.build_config}: Fetching {queue.name}"
-					)
-					for item in queue.drain():
-						item_bar.set_description_str(f"Downloading: {item.key}")
-						try:
-							item.fetch()
-						except NetworkError as e:
-							tqdm.write(str(e), sys.stderr)
-						item_bar.update()
-						bar.update()
+			for queue in fetcher.fetch_metadata():
+				bar.n = 0
+				bar.total = len(queue)
+				bar.set_description(
+					f"Version {fetcher.version.build_config}: Fetching {queue.name}"
+				)
+				for item in queue.drain():
+					item_bar.set_description_str(f"Downloading: {item.key}")
+					try:
+						item.fetch()
+					except NetworkError as e:
+						tqdm.write(str(e), sys.stderr)
+					item_bar.update()
+					bar.update()
 
-					if queue.name == "product config" and not fetcher.version.product_config:
-						# Backwards compatibility!
-						# ProductConfig essentially replaced the game blob.
-						# But for some old repos (eg. s1a), there's no ProductConfig yet.
-						# This matters because we need the decryption key name from there.
-						# So we override the fetcher's product_config with the game blob.
-						game_blob = blobs.get("game", {})
-						if game_blob:
-							tqdm.write("Using legacy ProductConfig support")
-							fetcher.product_config = game_blob
-			except ArmadilloKeyNotFound as e:
-				_close_all_progress_bars()
-				raise click.ClickException(f"Decryption key not found: {str(e)}")
+				if queue.name == "product config" and not fetcher.version.product_config:
+					# Backwards compatibility!
+					# ProductConfig essentially replaced the game blob.
+					# But for some old repos (eg. s1a), there's no ProductConfig yet.
+					# This matters because we need the decryption key name from there.
+					# So we override the fetcher's product_config with the game blob.
+					game_blob = blobs.get("game", {})
+					if game_blob:
+						tqdm.write("Using legacy ProductConfig support")
+						fetcher.product_config = game_blob
+
+			if fetcher.decryption_key_name and not fetcher.decryption_key:
+				tqdm.write(
+					f"ERROR: Missing decryption key: {fetcher.decryption_key_name}", sys.stderr
+				)
 
 			if metadata_only:
 				tqdm.write(f"Version {build_config_key}: Metadata updated.")

@@ -8,6 +8,7 @@ from ..armadillo import ArmadilloKey
 from ..blte import verify_blte_data
 from ..configfile import BuildConfig, CDNConfig, PatchConfig
 from ..encoding import EncodingFile
+from ..exceptions import ArmadilloKeyNotFound
 from ..http import Versions
 from ..utils import verify_data
 from .keg import Keg
@@ -39,8 +40,14 @@ class FetchDirective:
 		path = self.get_full_path(self.key)
 		if not self.exists():
 			item = self.fetcher.remote_cdn.get_item(path)
-			if self.fetcher.decryption_key:
-				item = BytesIO(self.fetcher.decryption_key.decrypt_object(self.key, item.read()))
+			if self.fetcher.decryption_key_name:
+				if self.fetcher.decryption_key:
+					# Decrypt the item into a BytesIO
+					item = BytesIO(self.fetcher.decryption_key.decrypt_object(self.key, item.read()))
+				else:
+					# We don't have the key? Store it in the crypt store...
+					self.fetcher.local_cdn.write_encrypted_file(item, path)
+					return
 
 			temp_path = self.fetcher.local_cdn.write_temp_file(item.read())
 			if self.fetcher.verify:
@@ -241,7 +248,10 @@ class Fetcher:
 			)
 			if decryption_key_name:
 				self.decryption_key_name = decryption_key_name
-				self.decryption_key = self.local_cdn.get_decryption_key(decryption_key_name)
+				try:
+					self.decryption_key = self.local_cdn.get_decryption_key(decryption_key_name)
+				except ArmadilloKeyNotFound:
+					self.decryption_key = None
 
 		self.config_queue.add(self.version.build_config)
 		self.config_queue.add(self.version.cdn_config)

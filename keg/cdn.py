@@ -140,9 +140,13 @@ class LocalCDN(BaseCDN):
 		self.fragments_dir = fragments_dir
 		self.armadillo_dir = armadillo_dir
 		self.temp_dir = temp_dir
+		self.armadillo_objects_dir = os.path.join(self.armadillo_dir, "objects")
 
 	def get_full_path(self, path: str) -> str:
 		return os.path.join(self.base_dir, path.lstrip("/"))
+
+	def get_encrypted_path(self, path: str) -> str:
+		return os.path.join(self.armadillo_objects_dir, path.lstrip("/"))
 
 	def get_config_path(self, path: str) -> str:
 		return os.path.join(
@@ -229,6 +233,17 @@ class LocalCDN(BaseCDN):
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
 		os.rename(temp_path, path)
+
+	def write_encrypted_file(self, fp: IO, path: str) -> None:
+		"""
+		Writes an encrypted file to the armadillo object store.
+		"""
+		temp_path = self.write_temp_file(fp.read())
+		crypt_path = self.get_encrypted_path(path)
+		dirname = os.path.dirname(crypt_path)
+		if not os.path.exists(dirname):
+			os.makedirs(dirname)
+		os.rename(temp_path, crypt_path)
 
 
 class HTTPCacheWrapper:
