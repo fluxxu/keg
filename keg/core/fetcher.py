@@ -7,6 +7,7 @@ from ..armadillo import ArmadilloKey
 from ..configfile import BuildConfig, CDNConfig, PatchConfig
 from ..encoding import EncodingFile
 from ..http import Versions
+from .keg import Keg
 
 
 class FetchDirective:
@@ -37,7 +38,10 @@ class FetchDirective:
 			item = self.fetcher.remote_cdn.get_item(path)
 			if self.fetcher.decryption_key:
 				item = BytesIO(self.fetcher.decryption_key.decrypt_object(self.key, item.read()))
-			self.fetcher.local_cdn.save_item(item, path)
+
+			temp_path = self.fetcher.keg.write_temp_file(item.read())
+			# verify(item, ...)
+			self.fetcher.local_cdn.upgrade_temp_file(temp_path, path)
 
 	def exists(self) -> bool:
 		"""
@@ -148,11 +152,13 @@ class Fetcher:
 		version: Versions,
 		local_cdn: cdn.LocalCDN,
 		remote_cdn: cdn.RemoteCDN,
+		keg: Keg,
 		verify: bool=False
 	) -> None:
 		self.version = version
 		self.local_cdn = local_cdn
 		self.remote_cdn = remote_cdn
+		self.keg = keg
 		self.verify = verify
 
 		self.product_config_queue = FetchQueue(ProductConfigFetchDirective)

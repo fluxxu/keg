@@ -172,6 +172,7 @@ class App:
 				version,
 				self.keg.local_cdn,
 				remote_cdn,
+				self.keg,
 				verify=self.verify,
 			),
 			tqdm(

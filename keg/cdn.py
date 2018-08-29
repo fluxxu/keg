@@ -199,6 +199,16 @@ class LocalCDN(BaseCDN):
 		with open(key_path, "rb") as f:
 			return ArmadilloKey(f.read())
 
+	def upgrade_temp_file(self, temp_path: str, path: str) -> None:
+		"""
+		"Upgrades" a temporary file to the LocalCDN at the given path.
+		"""
+		path = self.get_full_path(path)
+		dirname = os.path.dirname(path)
+		if not os.path.exists(dirname):
+			os.makedirs(dirname)
+		os.rename(temp_path, path)
+
 
 class CacheableCDNWrapper(BaseCDN):
 	def __init__(
