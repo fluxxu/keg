@@ -14,7 +14,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from keg import CacheableHttpRemote, blte, psv
-from keg.archive import ArchiveGroup, ArchiveIndex
+from keg.archive import ArchiveIndex
 from keg.build import BuildManager
 from keg.cdn import DEFAULT_CONFIG_PATH, RemoteCDN
 from keg.core.fetcher import Fetcher
@@ -558,12 +558,15 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 
 	click.echo(f"Checking out {build_config_key}...")
 
-	http_remote = ctx.obj.keg.get_remote(remote)
-	cdn = ctx.obj._choose_cdn(http_remote.get_cached_cdns())
+	local_cdn = ctx.obj.keg.local_cdn
+	build = BuildManager(
+		build_config_key, cdn_config_key, local_cdn, verify=ctx.obj.verify
+	)
 
-	build = BuildManager(build_config_key, cdn_config_key, cdn, verify=ctx.obj.verify)
-
-	install_file = build.get_install()
+	try:
+		install_file = build.get_install()
+	except FileNotFoundError:
+		raise click.ClickException("Install file not available locally. Run fetch?")
 	if not install_file:
 		raise click.ClickException("Install file not found")
 
@@ -614,16 +617,10 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	if not encoding_file:
 		raise click.ClickException("No encoding file found. Cannot proceed.")
 
-	cdn_config = cdn.get_cdn_config(cdn_config_key, verify=ctx.obj.verify)
-	archive_group = ArchiveGroup(
-		cdn_config.archives,
-		cdn_config.archive_group,
-		cdn,
-		verify=ctx.obj.verify
-	)
-
 	if dryrun:
 		return
+
+	archive_group = build.get_archive_group()
 
 	prev_filename, prev_key = "", ""
 	bar = tqdm(unit="file", ncols=0, leave=False, total=len(entries))
@@ -654,13 +651,13 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
 
-		if cdn.local_cdn.has_data(encoding_key):
-			with cdn.download_data(encoding_key, verify=ctx.obj.verify) as encoded_file:
+		if local_cdn.has_data(encoding_key):
+			with local_cdn.download_data(encoding_key, verify=ctx.obj.verify) as encoded_file:
 				decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=ctx.obj.verify)
 				with open(file_path, "wb") as f:
 					decoder.decode_and_write(f)
-		elif cdn.local_cdn.has_fragment(encoding_key):
-			with cdn.local_cdn.get_fragment(encoding_key) as encoded_file:
+		elif local_cdn.has_fragment(encoding_key):
+			with local_cdn.get_fragment(encoding_key) as encoded_file:
 				decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=ctx.obj.verify)
 				with open(file_path, "wb") as f:
 					decoder.decode_and_write(f)

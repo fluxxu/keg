@@ -2,14 +2,14 @@ from typing import Union
 
 from . import blte
 from .archive import ArchiveGroup
-from .cdn import BaseCDN
+from .cdn import LocalCDN
 from .encoding import EncodingFile
 from .installfile import InstallFile
 
 
 class BuildManager:
 	def __init__(
-		self, build_config: str, cdn_config: str, cdn: BaseCDN, verify: bool=False
+		self, build_config: str, cdn_config: str, cdn: LocalCDN, verify: bool=False
 	) -> None:
 		self.build_config_key = build_config
 		self.cdn_config_key = cdn_config
