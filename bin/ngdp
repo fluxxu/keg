@@ -820,42 +820,6 @@ def fsck(ctx, delete):
 		exit(1)
 
 
-@main.command("parse-index")
-@click.argument("key_or_path")
-@click.pass_context
-def parse_index(ctx, key_or_path):
-	def get_actual_path(path):
-		if os.path.exists(path):
-			return path
-
-		if looks_like_md5(key_or_path):
-			real_path = os.path.join(
-				ctx.obj.keg.objects_path,
-				"data",
-				partition_hash(key_or_path) + ".index"
-			)
-			if os.path.exists(real_path):
-				return real_path
-
-	real_path = get_actual_path(key_or_path)
-	if not real_path:
-		raise click.ClickException(f"No such file or object: {key_or_path}")
-
-	key = os.path.basename(os.path.splitext(real_path)[0])
-	if not looks_like_md5(key):
-		click.echo(f"WARNING: Invalid key name {repr(key)}", file=sys.stderr)
-
-	with open(real_path, "rb") as f:
-		data = f.read()
-
-	archive_index = ArchiveIndex(data, key, verify=ctx.obj.verify)
-
-	click.secho(
-		ctx.obj.tabulate(archive_index.items, headers=("Key", "Size", "Offset")),
-		fg="black", bold=True
-	)
-
-
 @main.command("parse-encoding")
 @click.argument("paths", nargs=-1)
 @click.pass_context
@@ -1006,6 +970,43 @@ def reconstruct_archive(ctx, archive_key, fragment_paths):
 	else:
 		os.rename(temp_path, archive_key)
 		click.echo(f"Written to {os.path.abspath(archive_key)}")
+
+
+@archive.command("list-fragments")
+@click.argument("archive-keys-or-paths", nargs=-1)
+@click.pass_context
+def list_archive_fragments(ctx, archive_keys_or_paths):
+	def get_actual_path(path):
+		if os.path.exists(path):
+			return path
+
+		if looks_like_md5(key_or_path):
+			real_path = os.path.join(
+				ctx.obj.keg.objects_path,
+				"data",
+				partition_hash(key_or_path) + ".index"
+			)
+			if os.path.exists(real_path):
+				return real_path
+
+	for key_or_path in archive_keys_or_paths:
+		real_path = get_actual_path(key_or_path)
+		if not real_path:
+			raise click.ClickException(f"No such file or object: {key_or_path}")
+
+		key = os.path.basename(os.path.splitext(real_path)[0])
+		if not looks_like_md5(key):
+			click.echo(f"WARNING: Invalid key name {repr(key)}", file=sys.stderr)
+
+		with open(real_path, "rb") as f:
+			data = f.read()
+
+		archive_index = ArchiveIndex(data, key, verify=ctx.obj.verify)
+
+		click.secho(
+			ctx.obj.tabulate(archive_index.items, headers=("Key", "Size", "Offset")),
+			fg="black", bold=True
+		)
 
 
 if __name__ == "__main__":
