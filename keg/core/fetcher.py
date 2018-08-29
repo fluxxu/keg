@@ -1,12 +1,15 @@
+import os
 from io import BytesIO
-from typing import Generator, Optional, Set, Type
+from typing import IO, Generator, Optional, Set, Type
 
 from .. import blte, cdn
 from ..archive import ArchiveGroup
 from ..armadillo import ArmadilloKey
+from ..blte import verify_blte_data
 from ..configfile import BuildConfig, CDNConfig, PatchConfig
 from ..encoding import EncodingFile
 from ..http import Versions
+from ..utils import verify_data
 from .keg import Keg
 
 
@@ -40,7 +43,9 @@ class FetchDirective:
 				item = BytesIO(self.fetcher.decryption_key.decrypt_object(self.key, item.read()))
 
 			temp_path = self.fetcher.keg.write_temp_file(item.read())
-			# verify(item, ...)
+			if self.fetcher.verify:
+				with open(temp_path, "rb") as f:
+					self.verify(f)
 			self.fetcher.local_cdn.upgrade_temp_file(temp_path, path)
 
 	def exists(self) -> bool:
@@ -48,6 +53,9 @@ class FetchDirective:
 		Returns True if the item exists on disk, False otherwise.
 		"""
 		return self.key_exists(self.key, self.fetcher.local_cdn)
+
+	def verify(self, fp: IO) -> None:
+		raise NotImplementedError()
 
 
 class ProductConfigFetchDirective(FetchDirective):
@@ -65,21 +73,49 @@ class ProductConfigFetchDirective(FetchDirective):
 class ConfigFetchDirective(FetchDirective):
 	get_full_path = staticmethod(cdn.get_config_path)  # type: ignore
 
+	def verify(self, fp: IO) -> None:
+		verify_data("config file", fp.read(), self.key, verify=True)
 
-class DataFetchDirective(FetchDirective):
+
+class ArchiveFetchDirective(FetchDirective):
 	get_full_path = staticmethod(cdn.get_data_path)  # type: ignore
+
+	def verify(self, fp: IO) -> None:
+		if not DataIndexFetchDirective.key_exists(self.key, self.fetcher.local_cdn):
+			raise FileNotFoundError(f"No index file for archive {self.key}")
+		# TODO: Archive verification
+
+
+class LooseFileFetchDirective(FetchDirective):
+	get_full_path = staticmethod(cdn.get_data_path)  # type: ignore
+
+	def verify(self, fp: IO) -> None:
+		verify_blte_data(fp, self.key)
 
 
 class DataIndexFetchDirective(FetchDirective):
 	get_full_path = staticmethod(cdn.get_data_index_path)  # type: ignore
 
+	def verify(self, fp: IO) -> None:
+		# TODO: verification of the rest of the data
+		fp.seek(-28, os.SEEK_END)
+		verify_data("archive index", fp.read(), self.key, verify=True)
+
 
 class PatchFetchDirective(FetchDirective):
 	get_full_path = staticmethod(cdn.get_patch_path)  # type: ignore
 
+	def verify(self, fp: IO) -> None:
+		verify_data("patch file", fp.read(), self.key, verify=True)
+
 
 class PatchIndexFetchDirective(FetchDirective):
 	get_full_path = staticmethod(cdn.get_patch_index_path)  # type: ignore
+
+	def verify(self, fp: IO) -> None:
+		# TODO: verification of the rest of the data
+		fp.seek(-28, os.SEEK_END)
+		verify_data("patch index", fp.read(), self.key, verify=True)
 
 
 class FetchQueue:
@@ -165,8 +201,8 @@ class Fetcher:
 		self.config_queue = FetchQueue(ConfigFetchDirective)
 		self.index_queue = FetchQueue(DataIndexFetchDirective)
 		self.patch_index_queue = FetchQueue(PatchIndexFetchDirective)
-		self.archive_queue = FetchQueue(DataFetchDirective)
-		self.loose_file_queue = FetchQueue(DataFetchDirective)
+		self.archive_queue = FetchQueue(ArchiveFetchDirective)
+		self.loose_file_queue = FetchQueue(LooseFileFetchDirective)
 		self.patch_queue = FetchQueue(PatchFetchDirective)
 
 		self.build_config: Optional[BuildConfig] = None
