@@ -1,5 +1,4 @@
 import os
-from uuid import uuid4
 
 from .. import CacheableHttpRemote
 from ..cdn import LocalCDN
@@ -32,6 +31,7 @@ class Keg:
 			self.objects_path,
 			self.fragments_path,
 			self.armadillo_dir,
+			self.temp_dir
 		)
 
 	def initialize(self) -> bool:
@@ -64,16 +64,3 @@ class Keg:
 		if "://" not in remote:
 			remote = self.config.default_remote_prefix + remote
 		return remote
-
-	def write_temp_file(self, data: bytes) -> str:
-		"""
-		Writes bytes to the temp store.
-		Returns the temporary file path.
-		"""
-		temp_path = os.path.join(self.temp_dir, str(uuid4()))
-		if not os.path.exists(self.temp_dir):
-			os.makedirs(self.temp_dir)
-		with open(temp_path, "wb") as f:
-			f.write(data)
-
-		return temp_path

@@ -42,7 +42,7 @@ class FetchDirective:
 			if self.fetcher.decryption_key:
 				item = BytesIO(self.fetcher.decryption_key.decrypt_object(self.key, item.read()))
 
-			temp_path = self.fetcher.keg.write_temp_file(item.read())
+			temp_path = self.fetcher.local_cdn.write_temp_file(item.read())
 			if self.fetcher.verify:
 				with open(temp_path, "rb") as f:
 					self.verify(f)

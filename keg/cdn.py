@@ -2,6 +2,7 @@ import json
 import os
 from typing import IO
 from urllib.parse import urljoin
+from uuid import uuid4
 
 import requests
 
@@ -128,10 +129,17 @@ class RemoteCDN(BaseCDN):
 
 
 class LocalCDN(BaseCDN):
-	def __init__(self, base_dir: str, fragments_dir: str, armadillo_dir: str) -> None:
+	def __init__(
+		self,
+		base_dir: str,
+		fragments_dir: str,
+		armadillo_dir: str,
+		temp_dir: str
+	) -> None:
 		self.base_dir = base_dir
 		self.fragments_dir = fragments_dir
 		self.armadillo_dir = armadillo_dir
+		self.temp_dir = temp_dir
 
 	def get_full_path(self, path: str) -> str:
 		return os.path.join(self.base_dir, path.lstrip("/"))
@@ -198,6 +206,19 @@ class LocalCDN(BaseCDN):
 
 		with open(key_path, "rb") as f:
 			return ArmadilloKey(f.read())
+
+	def write_temp_file(self, data: bytes) -> str:
+		"""
+		Writes bytes to the temp store.
+		Returns the temporary file path.
+		"""
+		temp_path = os.path.join(self.temp_dir, str(uuid4()))
+		if not os.path.exists(self.temp_dir):
+			os.makedirs(self.temp_dir)
+		with open(temp_path, "wb") as f:
+			f.write(data)
+
+		return temp_path
 
 	def upgrade_temp_file(self, temp_path: str, path: str) -> None:
 		"""
