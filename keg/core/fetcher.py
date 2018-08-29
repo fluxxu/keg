@@ -218,6 +218,7 @@ class Fetcher:
 		self.product_config: Optional[dict] = None
 
 		self.decryption_key: Optional[ArmadilloKey] = None
+		self.decryption_key_name = ""
 
 	def fetch_config(self) -> Generator[Drain, None, None]:
 		"""
@@ -239,6 +240,7 @@ class Fetcher:
 				"decryption_key_name", ""
 			)
 			if decryption_key_name:
+				self.decryption_key_name = decryption_key_name
 				self.decryption_key = self.local_cdn.get_decryption_key(decryption_key_name)
 
 		self.config_queue.add(self.version.build_config)
