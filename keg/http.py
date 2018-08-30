@@ -33,7 +33,7 @@ class CDNs(PSVResponse):
 		super().__init__(row)
 		self.name = row.Name
 		self.path = row.Path
-		self.config_path = row.ConfigPath
+		self.config_path = getattr(row, "ConfigPath", "")
 
 	@property
 	def all_servers(self) -> List[str]:
@@ -52,12 +52,12 @@ class Versions(PSVResponse):
 	def __init__(self, row: psv.PSVRow) -> None:
 		super().__init__(row)
 		self.build_config = row.BuildConfig.lower()
-		self.build_id = row.BuildId
+		self.build_id = getattr(row, "BuildId", "")
 		self.cdn_config = row.CDNConfig.lower()
 		self.keyring = getattr(row, "KeyRing", "")
 		self.product_config = getattr(row, "ProductConfig", "").lower()
 		self.region = row.Region
-		self.versions_name = row.VersionsName
+		self.versions_name = getattr(row, "VersionsName", "")
 
 
 class BGDL(Versions):
