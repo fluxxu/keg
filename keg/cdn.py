@@ -234,6 +234,9 @@ class LocalCDN(BaseCDN):
 			os.makedirs(dirname)
 		os.rename(temp_path, path)
 
+	def has_encrypted_file(self, path: str) -> bool:
+		return os.path.exists(self.get_encrypted_path(path))
+
 	def write_encrypted_file(self, fp: IO, path: str) -> None:
 		"""
 		Writes an encrypted file to the armadillo object store.

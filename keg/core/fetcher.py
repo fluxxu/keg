@@ -46,7 +46,8 @@ class FetchDirective:
 					item = BytesIO(self.fetcher.decryption_key.decrypt_object(self.key, item.read()))
 				else:
 					# We don't have the key? Store it in the crypt store...
-					self.fetcher.local_cdn.write_encrypted_file(item, path)
+					if not self.fetcher.local_cdn.has_encrypted_file(path):
+						self.fetcher.local_cdn.write_encrypted_file(item, path)
 					return
 
 			temp_path = self.fetcher.local_cdn.write_temp_file(item.read())
