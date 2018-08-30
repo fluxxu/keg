@@ -109,11 +109,20 @@ class DataIndexFetchDirective(FetchDirective):
 		verify_data("archive index", fp.read(), self.key, verify=True)
 
 
-class PatchFetchDirective(FetchDirective):
+class PatchEntryFetchDirective(FetchDirective):
 	get_full_path = staticmethod(cdn.get_patch_path)  # type: ignore
 
 	def verify(self, fp: IO) -> None:
-		verify_data("patch file", fp.read(), self.key, verify=True)
+		verify_data("patch entry", fp.read(), self.key, verify=True)
+
+
+class PatchArchiveFetchDirective(FetchDirective):
+	get_full_path = staticmethod(cdn.get_patch_path)  # type: ignore
+
+	def verify(self, fp: IO) -> None:
+		if not PatchIndexFetchDirective.key_exists(self.key, self.fetcher.local_cdn):
+			raise FileNotFoundError(f"No index file for archive {self.key}")
+		# TODO: Patch Archive verification
 
 
 class PatchIndexFetchDirective(FetchDirective):
@@ -216,7 +225,8 @@ class Fetcher:
 		self.archive_queue = FetchQueue(ArchiveFetchDirective)
 		self.loose_file_queue = FetchQueue(LooseFileFetchDirective)
 		self.signature_file_queue = FetchQueue(SignatureFileFetchDirective)
-		self.patch_queue = FetchQueue(PatchFetchDirective)
+		self.patch_entry_queue = FetchQueue(PatchEntryFetchDirective)
+		self.patch_archive_queue = FetchQueue(PatchArchiveFetchDirective)
 
 		self.build_config: Optional[BuildConfig] = None
 		self.cdn_config: Optional[CDNConfig] = None
@@ -298,7 +308,7 @@ class Fetcher:
 			yield Drain("archive indices", self.index_queue, self)
 
 			for patch_archive_key in self.cdn_config.patch_archives:
-				self.patch_queue.add(patch_archive_key)
+				self.patch_archive_queue.add(patch_archive_key)
 				self.patch_index_queue.add(patch_archive_key)
 
 			if self.cdn_config.patch_file_index:
@@ -308,7 +318,7 @@ class Fetcher:
 			if self.patch_config:
 				for patch_entry in self.patch_config.patch_entries:
 					for old_key, old_size, patch_key, patch_size in patch_entry.pairs:
-						self.patch_queue.add(patch_key)
+						self.patch_entry_queue.add(patch_key)
 
 			encoding = self.build_config.encoding
 			if encoding.encoding_key:
@@ -354,4 +364,5 @@ class Fetcher:
 
 		yield Drain("archives", self.archive_queue, self)
 		yield Drain("loose files", self.loose_file_queue, self)
-		yield Drain("patch files", self.patch_queue, self)
+		yield Drain("patch entries", self.patch_entry_queue, self)
+		yield Drain("patch archives", self.patch_archive_queue, self)
