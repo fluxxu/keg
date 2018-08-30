@@ -34,4 +34,6 @@ class StateCache:
 		return atomic_write(path, content)
 
 	def write_response(self, response: StatefulResponse) -> int:
+		if self.exists(response.name, response.digest):
+			return 0
 		return self.write(response.name, response.digest, response.content)
