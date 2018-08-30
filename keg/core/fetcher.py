@@ -74,7 +74,7 @@ class ProductConfigFetchDirective(FetchDirective):
 		path = cdn.get_config_item_path(self.key)
 		if not self.exists():
 			item = self.fetcher.remote_cdn.get_config_item(path)
-			self.fetcher.local_cdn.save_item(item, path)
+			self.fetcher.local_cdn.save_config_item(item, path)
 
 
 class ConfigFetchDirective(FetchDirective):
