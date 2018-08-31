@@ -306,8 +306,6 @@ class Fetcher:
 			if self.cdn_config.file_index:
 				self.index_queue.add(self.cdn_config.file_index)
 
-			yield Drain("archive indices", self.index_queue, self)
-
 			for patch_archive_key in self.cdn_config.patch_archives:
 				self.patch_archive_queue.add(patch_archive_key)
 				self.patch_index_queue.add(patch_archive_key)
@@ -342,6 +340,9 @@ class Fetcher:
 			if self.build_config.build_signature_file:
 				self.signature_file_queue.add(self.build_config.build_signature_file)
 				yield Drain("signature file", self.signature_file_queue, self)
+
+		if self.index_queue:
+			yield Drain("archive indices", self.index_queue, self)
 
 		if self.patch_index_queue:
 			yield Drain("patch indices", self.patch_index_queue, self)
