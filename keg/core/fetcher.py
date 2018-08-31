@@ -322,7 +322,7 @@ class Fetcher:
 			encoding = self.build_config.encoding
 			if encoding.encoding_key:
 				self.loose_file_queue.add(encoding.encoding_key)
-				yield Drain("encoding file", self.loose_file_queue, self)
+				yield Drain("encoding table", self.loose_file_queue, self)
 				if self.local_cdn.has_data(encoding.encoding_key):
 					data = blte.load(
 						self.local_cdn.download_data(encoding.encoding_key),
