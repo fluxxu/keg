@@ -46,6 +46,8 @@ class App:
 	def __init__(self, ngdp_dir: str) -> None:
 		self.keg = Keg(ngdp_dir)
 		self.force_cdn = ""
+		self.table_format = "psql"
+		self.progress = True
 
 	@property
 	def verify(self):
@@ -73,6 +75,10 @@ class App:
 			headers = []
 
 		return tabulate(table, headers=headers, tablefmt=self.table_format)
+
+	def tqdm(self, *args, **kwargs):
+		kwargs.setdefault("disable", not self.progress)
+		return tqdm(*args, **kwargs)
 
 	def _choose_cdn(self, cdns) -> RemoteCDN:
 		if self.force_cdn:
@@ -106,7 +112,7 @@ class App:
 		return RemoteCDN(server, path, config_path)
 
 	def fetch_stateful_data(self, remote: CacheableHttpRemote):
-		bar = tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
+		bar = self.tqdm(leave=False, total=4, bar_format="{desc}", postfix="")
 
 		# Look up all available CDNs and choose one to use
 		bar.set_description_str("Receiving CDN list")
@@ -155,7 +161,7 @@ class App:
 		}
 		versions = list(deduped_versions.values())
 
-		item_bar = tqdm(unit="", leave=False, bar_format="", postfix="", position=0)
+		item_bar = self.tqdm(unit="", leave=False, bar_format="", postfix="", position=0)
 		fetchers = [(
 			Fetcher(
 				version,
@@ -164,7 +170,7 @@ class App:
 				self.keg,
 				verify=self.verify,
 			),
-			tqdm(
+			self.tqdm(
 				leave=False,
 				unit="",
 				desc=f"Version {version.build_config}: Waiting.",
@@ -246,12 +252,14 @@ class App:
 @click.group()
 @click.option("--ngdp-dir", default=".ngdp")
 @click.option("--cdn")
+@click.option("--progress/--no-progress", default=True)
 @click.option("--table-format", default="psql")
 @click.pass_context
-def main(ctx, ngdp_dir, cdn, table_format):
+def main(ctx, ngdp_dir, cdn, progress, table_format):
 	ctx.obj = App(ngdp_dir)
 	ctx.obj.force_cdn = cdn
 	ctx.obj.table_format = table_format
+	ctx.obj.progress = progress
 
 
 @main.command()
@@ -306,7 +314,7 @@ def force_fetch(ctx, remote, version_keys, metadata_only):
 @click.pass_context
 def fetch_object(ctx, keys, type):
 	cdn = ctx.obj._choose_cdn([])
-	bar = tqdm(unit="file", ncols=0, leave=False, total=len(keys))
+	bar = ctx.obj.tqdm(unit="file", ncols=0, leave=False, total=len(keys))
 
 	if type == "data":
 		for key in keys:
@@ -622,7 +630,7 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 	archive_group = build.get_archive_group()
 
 	prev_filename, prev_key = "", ""
-	bar = tqdm(unit="file", ncols=0, leave=False, total=len(entries))
+	bar = ctx.obj.tqdm(unit="file", ncols=0, leave=False, total=len(entries))
 	errors = 0
 	for filename, key, size in entries:
 		bar.update()
@@ -763,7 +771,7 @@ def fsck(ctx, delete):
 	))
 
 	fail = 0
-	bar = tqdm(unit="object", ncols=0, leave=True, total=len(objects))
+	bar = ctx.obj.tqdm(unit="object", ncols=0, leave=True, total=len(objects))
 	deleted_str = " (deleted)" if delete else ""
 	for path in objects:
 		bar.update()
@@ -898,7 +906,7 @@ def extract_archive(ctx, archive_key, out_dir, extract_blte):
 	archive_index = cdn.get_index(archive_key, verify=ctx.obj.verify)
 	items = list(archive_index.items)
 
-	bar = tqdm(unit="files", ncols=0, leave=False, total=len(items))
+	bar = ctx.obj.tqdm(unit="files", ncols=0, leave=False, total=len(items))
 	for key, size, offset in items:
 		bar.update()
 		bar.set_description(f"Extracting {key}")
@@ -934,7 +942,7 @@ def reconstruct_archive(ctx, archive_key, fragment_paths):
 	errors = 0
 	temp_path = f"{archive_key}.keg_temp"
 	with open(temp_path, "wb") as archive_file:
-		bar = tqdm(unit="fragment", ncols=0, leave=False, total=len(items))
+		bar = ctx.obj.tqdm(unit="fragment", ncols=0, leave=False, total=len(items))
 		for key, size, offset in items:
 			bar.update()
 			for path in fragment_paths:
