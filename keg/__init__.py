@@ -2,8 +2,8 @@ from enum import IntEnum
 from typing import Any, List, Tuple
 
 from . import psv
-from .http import HttpRemote
 from .psvresponse import CDNs, Versions
+from .remote.http import HttpRemote
 
 
 class Source(IntEnum):

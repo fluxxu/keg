@@ -2,7 +2,7 @@ import sqlite3
 from typing import Iterable, List, Tuple
 
 from .. import psv
-from ..http import StatefulResponse
+from ..remote.http import StatefulResponse
 
 
 TABLE_DEFINITIONS = [

@@ -7,9 +7,10 @@ from typing import Any, List, Tuple
 
 import requests
 
-from . import psv, psvresponse
-from .exceptions import NetworkError
-from .utils import partition_hash
+from .. import psv, psvresponse
+from ..exceptions import NetworkError
+from ..utils import partition_hash
+from .base import BaseRemote
 
 
 class StatefulResponse:
@@ -27,14 +28,7 @@ class StatefulResponse:
 			raise NetworkError(f"Got status code {response.status_code} for {repr(name)}")
 
 
-class Remote:
-	pass
-
-
-class HttpRemote(Remote):
-	def __init__(self, remote: str) -> None:
-		self.remote = remote
-
+class HttpRemote(BaseRemote):
 	def get_response(self, path: str) -> StatefulResponse:
 		url = self.remote + path
 		return StatefulResponse(path, requests.get(url))

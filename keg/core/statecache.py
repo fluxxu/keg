@@ -1,7 +1,7 @@
 import os
 
 from .. import psv
-from ..http import StatefulResponse
+from ..remote.http import StatefulResponse
 from ..utils import atomic_write, partition_hash
 
 
