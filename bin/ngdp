@@ -21,7 +21,7 @@ from keg.core.fetcher import Fetcher
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError
-from keg.http import Versions
+from keg.psvresponse import Versions
 from keg.utils import partition_hash, verify_data
 
 

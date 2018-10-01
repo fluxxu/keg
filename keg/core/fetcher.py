@@ -9,7 +9,7 @@ from ..blte import verify_blte_data
 from ..configfile import BuildConfig, CDNConfig, PatchConfig
 from ..encoding import EncodingFile
 from ..exceptions import ArmadilloKeyNotFound
-from ..http import Versions
+from ..psvresponse import Versions
 from ..utils import verify_data
 from .keg import Keg
 

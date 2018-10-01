@@ -1,5 +1,5 @@
 from keg import psv
-from keg.http import CDNs, Versions
+from keg.psvresponse import CDNs, Versions
 
 from . import get_resource
 
