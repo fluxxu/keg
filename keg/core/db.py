@@ -218,11 +218,10 @@ class KegDB:
 			return ""
 		return ret[0]
 
-	def write_psv(self, psvfile: psv.PSVFile, key: str, remote: str, path: str) -> None:
+	def write_psv(self, psvfile: psv.PSVFile, key: str, remote: str, name: str) -> None:
 		cursor = self.cursor()
-		table_name = path.strip("/")
 		cursor.execute(f"""
-			DELETE FROM "{table_name}"
+			DELETE FROM "{name}"
 			WHERE
 				remote = ? AND
 				key = ?
@@ -234,7 +233,7 @@ class KegDB:
 			VALUES
 				(?, ?, ?, %s)
 			""" % (
-			table_name,
+			name,
 			", ".join(psvfile.header),
 			", ".join(["?"] * len(psvfile.header))
 		)

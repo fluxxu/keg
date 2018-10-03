@@ -29,15 +29,15 @@ class CacheableHttpRemote(HttpRemote):
 		self.cache_db.write_response(response, self.remote, path, Source.HTTP)
 		return psvfile, response
 
-	def get_cached_psv(self, path: str) -> psv.PSVFile:
-		key = self.cache_db.get_response_key(self.remote, path)
+	def get_cached_psv(self, name: str) -> psv.PSVFile:
+		key = self.cache_db.get_response_key(self.remote, name)
 		if not key:
 			# Fall back to querying live
-			return self.get_psv(path)
-		return self.state_cache.read_psv(path, key)
+			return self.get_psv(name)
+		return self.state_cache.read_psv(name, key)
 
 	def get_cached_cdns(self) -> List[CDNs]:
-		return [CDNs(row) for row in self.get_cached_psv("/cdns")]
+		return [CDNs(row) for row in self.get_cached_psv("cdns")]
 
 	def get_cached_versions(self) -> List[Versions]:
-		return [Versions(row) for row in self.get_cached_psv("/versions")]
+		return [Versions(row) for row in self.get_cached_psv("versions")]

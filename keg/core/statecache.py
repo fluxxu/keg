@@ -18,7 +18,7 @@ class StateCache:
 		return os.path.exists(self.get_full_path(name, key))
 
 	def get_full_path(self, name: str, key: str) -> str:
-		return os.path.join(self.cache_dir, name.strip("/"), partition_hash(key))
+		return os.path.join(self.cache_dir, name, partition_hash(key))
 
 	def read(self, name: str, key: str) -> str:
 		with open(self.get_full_path(name, key), "r") as f:

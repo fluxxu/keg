@@ -33,15 +33,15 @@ class HttpRemote(BaseRemote):
 		return StatefulResponse(path, requests.get(url))
 
 	def get_blobs(self) -> List[psvresponse.Blobs]:
-		psvfile, _ = self.get_psv("/blobs")
+		psvfile, _ = self.get_psv("blobs")
 		return [psvresponse.Blobs(row) for row in psvfile]
 
 	def get_cdns(self) -> List[psvresponse.CDNs]:
-		psvfile, _ = self.get_psv("/cdns")
+		psvfile, _ = self.get_psv("cdns")
 		return [psvresponse.CDNs(row) for row in psvfile]
 
 	def get_versions(self) -> List[psvresponse.Versions]:
-		psvfile, _ = self.get_psv("/versions")
+		psvfile, _ = self.get_psv("versions")
 		return [psvresponse.Versions(row) for row in psvfile]
 
 	def get_blob(self, name: str) -> Tuple[Any, StatefulResponse]:
@@ -49,9 +49,9 @@ class HttpRemote(BaseRemote):
 		return json.loads(resp.content.decode()), resp
 
 	def get_bgdl(self) -> List[psvresponse.BGDL]:
-		psvfile, _ = self.get_psv("/bgdl")
+		psvfile, _ = self.get_psv("bgdl")
 		return [psvresponse.BGDL(row) for row in psvfile]
 
-	def get_psv(self, path: str) -> Tuple[psv.PSVFile, StatefulResponse]:
-		resp = self.get_response(path)
+	def get_psv(self, name: str) -> Tuple[psv.PSVFile, StatefulResponse]:
+		resp = self.get_response(f"/{name}")
 		return psv.loads(resp.content.decode()), resp
