@@ -13,6 +13,7 @@ class Keg:
 		self.objects_path = os.path.join(self.path, "objects")
 		self.fragments_path = os.path.join(self.path, "fragments")
 		self.response_cache_dir = os.path.join(self.path, "responses")
+		self.ribbit_cache_dir = os.path.join(self.path, "ribbit")
 		self.armadillo_dir = os.path.join(self.path, "armadillo")
 		self.temp_dir = os.path.join(self.path, "tmp")
 		self.config_path = os.path.join(self.path, "keg.conf")

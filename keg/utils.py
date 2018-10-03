@@ -13,6 +13,12 @@ def atomic_write(path: str, content: bytes) -> int:
 	return ret
 
 
+def ensure_dir_exists(path: str) -> None:
+	dirname = os.path.dirname(path)
+	if not os.path.exists(dirname):
+		os.makedirs(dirname)
+
+
 def partition_hash(hash: str) -> str:
 	if len(hash) < 4:
 		raise ValueError(f"Invalid hash to partition: {repr(hash)}")

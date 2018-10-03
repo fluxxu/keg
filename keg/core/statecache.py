@@ -2,17 +2,12 @@ import os
 
 from .. import psv
 from ..remote.http import StatefulResponse
-from ..utils import atomic_write, partition_hash
+from ..utils import atomic_write, ensure_dir_exists, partition_hash
 
 
 class StateCache:
 	def __init__(self, cache_dir: str) -> None:
 		self.cache_dir = cache_dir
-
-	def _ensure_dir_exists(self, path: str):
-		dirname = os.path.dirname(path)
-		if not os.path.exists(dirname):
-			os.makedirs(dirname)
 
 	def exists(self, name: str, key: str) -> bool:
 		return os.path.exists(self.get_full_path(name, key))
@@ -30,7 +25,7 @@ class StateCache:
 
 	def write(self, name: str, key: str, content: bytes) -> int:
 		path = self.get_full_path(name, key)
-		self._ensure_dir_exists(path)
+		ensure_dir_exists(path)
 		return atomic_write(path, content)
 
 	def write_response(self, response: StatefulResponse) -> int:
