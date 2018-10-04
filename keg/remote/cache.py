@@ -1,9 +1,13 @@
 from enum import IntEnum
 from typing import Any, List, Tuple
 
+from ..core.db import KegDB
+from ..core.statecache import StateCache
 from ..psv import PSVFile
 from ..psvresponse import CDNs, Versions
+from .base import BaseRemote
 from .http import HttpRemote
+from .ribbit import RibbitRemote
 
 
 class Source(IntEnum):
@@ -12,13 +16,17 @@ class Source(IntEnum):
 	RIBBIT = 2
 
 
-class CacheableHttpRemote(HttpRemote):
-	def __init__(self, remote: str, cache_dir: str, cache_db, state_cache) -> None:
+class CacheableRemote(BaseRemote):
+	def __init__(
+		self, remote: str, cache_dir: str, cache_db: KegDB, state_cache: StateCache
+	) -> None:
 		super().__init__(remote)
 		self.cache_dir = cache_dir
 		self.cache_db = cache_db
 		self.state_cache = state_cache
 
+
+class CacheableHttpRemote(CacheableRemote, HttpRemote):
 	def get_blob(self, name: str) -> Tuple[Any, Any]:
 		ret, response = super().get_blob(name)
 		self.state_cache.write_response(response)
