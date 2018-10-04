@@ -13,18 +13,18 @@ from .base import BaseRemote
 
 
 class StatefulResponse:
-	def __init__(self, name: str, response: requests.Response) -> None:
-		self.name = name
+	def __init__(self, path: str, response: requests.Response) -> None:
+		self.path = path
 		self.content = response.content
 		self.timestamp = int(datetime.now().timestamp())
 		self.digest = md5(self.content).hexdigest()
 		self.cache_path = os.path.join(
-			self.name.strip("/"),
+			self.path.strip("/"),
 			partition_hash(self.digest)
 		)
 
 		if response.status_code != 200:
-			raise NetworkError(f"Got status code {response.status_code} for {repr(name)}")
+			raise NetworkError(f"Got status code {response.status_code} for {path!r}")
 
 
 class HttpRemote(BaseRemote):
