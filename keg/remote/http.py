@@ -16,7 +16,7 @@ class StatefulResponse:
 	def __init__(self, path: str, response: requests.Response) -> None:
 		self.path = path
 		self.content = response.content
-		self.timestamp = int(datetime.now().timestamp())
+		self.timestamp = int(datetime.utcnow().timestamp())
 		self.digest = md5(self.content).hexdigest()
 		self.cache_path = os.path.join(
 			self.path.strip("/"),
