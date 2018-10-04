@@ -28,6 +28,8 @@ class StatefulResponse:
 
 
 class HttpRemote(BaseRemote):
+	supports_blobs = True
+
 	def get_response(self, path: str) -> StatefulResponse:
 		url = self.remote + path
 		return StatefulResponse(path, requests.get(url))
