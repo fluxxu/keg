@@ -1,8 +1,15 @@
 import sqlite3
+from enum import IntEnum
 from typing import Iterable, List, Tuple
 
 from .. import psv
 from ..remote.http import StatefulResponse
+
+
+class ResponseSource(IntEnum):
+	INVALID = 0
+	HTTP = 1
+	RIBBIT = 2
 
 
 TABLE_DEFINITIONS = [
@@ -190,8 +197,8 @@ class KegDB:
 				sorted(set(k for k, _ in results))
 			)
 
-	def write_response(
-		self, response: StatefulResponse, remote: str, path: str, source: int
+	def write_http_response(
+		self, response: StatefulResponse, remote: str, path: str
 	) -> None:
 		cursor = self.cursor()
 		cursor.execute("""
@@ -199,7 +206,7 @@ class KegDB:
 				(remote, path, timestamp, digest, source)
 			VALUES
 				(?, ?, ?, ?, ?)
-		""", (remote, path, response.timestamp, response.digest, source))
+		""", (remote, path, response.timestamp, response.digest, ResponseSource.HTTP))
 		self.commit()
 
 	def get_response_key(self, remote: str, path: str) -> str:

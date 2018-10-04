@@ -1,4 +1,3 @@
-from enum import IntEnum
 from typing import Any, List, Tuple
 
 from ..core.db import KegDB
@@ -7,13 +6,6 @@ from ..psv import PSVFile
 from ..psvresponse import CDNs, Versions
 from .base import BaseRemote
 from .http import HttpRemote
-from .ribbit import RibbitRemote
-
-
-class Source(IntEnum):
-	INVALID = 0
-	HTTP = 1
-	RIBBIT = 2
 
 
 class CacheableRemote(BaseRemote):
@@ -29,14 +21,14 @@ class CacheableRemote(BaseRemote):
 class CacheableHttpRemote(CacheableRemote, HttpRemote):
 	def get_blob(self, name: str) -> Tuple[Any, Any]:
 		ret, response = super().get_blob(name)
-		self.state_cache.write_response(response)
+		self.state_cache.write_http_response(response)
 		return ret, response
 
 	def get_psv(self, path: str):
 		psvfile, response = super().get_psv(path)
-		self.state_cache.write_response(response)
+		self.state_cache.write_http_response(response)
 		self.cache_db.write_psv(psvfile, response.digest, self.remote, path)
-		self.cache_db.write_response(response, self.remote, path, Source.HTTP)
+		self.cache_db.write_http_response(response, self.remote, path)
 		return psvfile, response
 
 	def get_cached_psv(self, name: str) -> PSVFile:

@@ -28,7 +28,7 @@ class StateCache:
 		ensure_dir_exists(path)
 		return atomic_write(path, content)
 
-	def write_response(self, response: StatefulResponse) -> int:
+	def write_http_response(self, response: StatefulResponse) -> int:
 		name = response.path.lstrip("/")
 		if self.exists(name, response.digest):
 			return 0
