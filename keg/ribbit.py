@@ -9,8 +9,57 @@ from .exceptions import IntegrityVerificationError, NoDataError, RibbitError
 DEFAULT_PORT = 1119
 
 
+class RibbitRequest:
+	"""
+	A request to a Ribbit server.
+
+	Initialize the request with hostname, port and encoded data to send.
+	Perform the request with request.send()
+	"""
+
+	def __init__(self, hostname: str, port: int, data: bytes) -> None:
+		self.hostname = hostname
+		self.port = port
+		self.data = data
+
+	def send(self, buffer_size: int) -> "RibbitResponse":
+		# Connect to the ribbit server
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect((self.hostname, self.port))
+		buf = []
+		try:
+			# Send the path request
+			s.send(self.data)
+			# Receive and buffer the data
+			chunk = s.recv(buffer_size)
+			while chunk:
+				buf.append(chunk)
+				chunk = s.recv(buffer_size)
+		finally:
+			s.close()
+		data = b"".join(buf)
+
+		if not data:
+			raise NoDataError()
+
+		# Data is expected to terminate in a CRLF, otherwise it's most likely broken
+		if not data.endswith(b"\r\n"):
+			raise RibbitError("Unterminated data... try again.")
+
+		return RibbitResponse(self, data)
+
+
 class RibbitResponse:
-	def __init__(self, data: bytes, *, verify: bool = True) -> None:
+	"""
+	A response to a RibbitRequest.
+
+	The request that created that response is available on the .request attribute.
+	"""
+
+	def __init__(
+		self, request: RibbitRequest, data: bytes, *, verify: bool = True
+	) -> None:
+		self.request = request
 		self.data = data
 
 		self.message = BytesParser().parsebytes(data)  # type: ignore # (typeshed#2502)
@@ -30,35 +79,20 @@ class RibbitResponse:
 
 
 class RibbitClient:
+	"""
+	A Ribbit client. Corresponds to a hostname/port pair.
+	"""
+
 	def __init__(self, hostname: str, port: int) -> None:
 		self.hostname = hostname
 		self.port = port
 
 	def get(self, path: str, *, buffer_size: int = 4096) -> RibbitResponse:
-		# Connect to the ribbit server
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect((self.hostname, self.port))
-		buf = []
+		request = RibbitRequest(self.hostname, self.port, f"{path}\n".encode())
 		try:
-			# Send the path request
-			s.send(path.encode() + b"\n")
-			# Receive and buffer the data
-			chunk = s.recv(buffer_size)
-			while chunk:
-				buf.append(chunk)
-				chunk = s.recv(buffer_size)
-		finally:
-			s.close()
-		data = b"".join(buf)
-
-		if not data:
-			raise NoDataError(f"No data at {path!r}")
-
-		# Data is expected to terminate in a CRLF, otherwise it's most likely broken
-		if not data.endswith(b"\r\n"):
-			raise RibbitError("Unterminated data... try again.")
-
-		return RibbitResponse(data)
+			return request.send(buffer_size)
+		except NoDataError as e:
+			raise NoDataError(f"No data at {path}") from e
 
 
 def parse_checksum(header: str) -> str:
