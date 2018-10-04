@@ -20,7 +20,7 @@ from keg.cdn import DEFAULT_CONFIG_PATH, RemoteCDN
 from keg.core.fetcher import Fetcher
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
-from keg.exceptions import IntegrityVerificationError, NetworkError
+from keg.exceptions import IntegrityVerificationError, NetworkError, NoDataError
 from keg.psvresponse import Versions
 from keg.utils import partition_hash, verify_data
 
@@ -128,26 +128,27 @@ class App:
 		bar.set_description_str("Receiving background download metadata")
 		try:
 			remote.get_bgdl()
-		except NetworkError:
+		except (NetworkError, NoDataError):
 			# bgdl is optional
 			pass
 
 		# Update blobs
-		bar.set_description_str("Receiving blobs")
-		try:
-			remote.get_blobs()
-		except NetworkError:
-			# Optional
-			pass
-
 		blobs = {}
-		for blob_name in ("game", "install"):
-			bar.set_description_str(f"Receiving {blob_name} blob")
+		if remote.supports_blobs:
+			bar.set_description_str("Receiving blobs")
 			try:
-				blobs[blob_name] = remote.get_blob(blob_name)[0]
+				remote.get_blobs()
 			except NetworkError:
-				# Blobs are optional
+				# Optional
 				pass
+
+			for blob_name in ("game", "install"):
+				bar.set_description_str(f"Receiving {blob_name} blob")
+				try:
+					blobs[blob_name] = remote.get_blob(blob_name)[0]
+				except NetworkError:
+					# Blobs are optional
+					pass
 
 		bar.close()
 
