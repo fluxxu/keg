@@ -24,11 +24,11 @@ class CacheableHttpRemote(CacheableRemote, HttpRemote):
 		self.state_cache.write_http_response(response)
 		return ret, response
 
-	def get_psv(self, path: str):
-		psvfile, response = super().get_psv(path)
+	def get_psv(self, name: str):
+		psvfile, response = super().get_psv(name)
 		self.state_cache.write_http_response(response)
-		self.cache_db.write_psv(psvfile, response.digest, self.remote, path)
-		self.cache_db.write_http_response(response, self.remote, path)
+		self.cache_db.write_psv(psvfile, response.digest, self.remote, name)
+		self.cache_db.write_http_response(response, self.remote, response.path)
 		return psvfile, response
 
 	def get_cached_psv(self, name: str) -> PSVFile:
