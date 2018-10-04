@@ -7,7 +7,9 @@ from .remote.http import HttpRemote
 
 
 class Source(IntEnum):
+	INVALID = 0
 	HTTP = 1
+	RIBBIT = 2
 
 
 class CacheableHttpRemote(HttpRemote):
