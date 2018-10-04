@@ -4,6 +4,7 @@ from typing import Iterable, List, Tuple
 
 from .. import psv
 from ..remote.http import StatefulResponse
+from ..ribbit import RibbitResponse
 
 
 class ResponseSource(IntEnum):
@@ -207,6 +208,24 @@ class KegDB:
 			VALUES
 				(?, ?, ?, ?, ?)
 		""", (remote, path, response.timestamp, response.digest, ResponseSource.HTTP))
+		self.commit()
+
+	def write_ribbit_response(
+		self, response: RibbitResponse, remote: str, path: str
+	) -> None:
+		cursor = self.cursor()
+		cursor.execute("""
+			INSERT INTO "responses"
+				(remote, path, timestamp, digest, source)
+			VALUES
+				(?, ?, ?, ?, ?)
+		""", (
+			remote,
+			path,
+			int(response.date.timestamp()),
+			response.checksum,
+			ResponseSource.RIBBIT
+		))
 		self.commit()
 
 	def get_response_key(self, remote: str, path: str) -> str:
