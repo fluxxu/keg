@@ -6,6 +6,7 @@ from ..psv import PSVFile
 from ..psvresponse import CDNs, Versions
 from .base import BaseRemote
 from .http import HttpRemote
+from .ribbit import RibbitRemote
 
 
 class CacheableRemote(BaseRemote):
@@ -43,3 +44,11 @@ class CacheableHttpRemote(CacheableRemote, HttpRemote):
 
 	def get_cached_versions(self) -> List[Versions]:
 		return [Versions(row) for row in self.get_cached_psv("versions")]
+
+
+class CacheableRibbitRemote(CacheableRemote, RibbitRemote):
+	def get_psv(self, name: str):
+		psvfile, response = super().get_psv(name)
+		self.cache_db.write_psv(psvfile, response.checksum, self.remote, name)
+		self.cache_db.write_ribbit_response(response, self.remote, response.request.path)
+		return psvfile, response
