@@ -1,7 +1,9 @@
 import os
+from typing import Union
 
 from .. import CacheableHttpRemote
 from ..cdn import LocalCDN
+from ..remote.ribbit import RibbitRemote
 from .config import KegConfig
 from .db import KegDB
 from .statecache import StateCache
@@ -49,7 +51,9 @@ class Keg:
 
 		return reinitialized
 
-	def get_remote(self, remote: str) -> CacheableHttpRemote:
+	def get_remote(self, remote: str) -> Union[CacheableHttpRemote, RibbitRemote]:
+		if remote.startswith("ribbit://"):
+			return RibbitRemote(remote)
 		return CacheableHttpRemote(
 			remote,
 			cache_dir=self.response_cache_dir,
