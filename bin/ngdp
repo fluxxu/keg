@@ -13,7 +13,7 @@ from humanize import naturalsize
 from tabulate import tabulate
 from tqdm import tqdm
 
-from keg import CacheableHttpRemote, blte, psv
+from keg import blte, psv
 from keg.archive import ArchiveIndex
 from keg.build import BuildManager
 from keg.cdn import DEFAULT_CONFIG_PATH, RemoteCDN
@@ -22,6 +22,7 @@ from keg.core.keg import Keg
 from keg.encoding import EncodingFile
 from keg.exceptions import IntegrityVerificationError, NetworkError, NoDataError
 from keg.psvresponse import Versions
+from keg.remote.cache import CacheableHttpRemote
 from keg.utils import partition_hash, verify_data
 
 

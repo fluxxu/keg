@@ -1,8 +1,8 @@
 import os
 from typing import Union
 
-from .. import CacheableHttpRemote
 from ..cdn import LocalCDN
+from ..remote.cache import CacheableHttpRemote
 from ..remote.ribbit import RibbitRemote
 from .config import KegConfig
 from .db import KegDB
