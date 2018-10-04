@@ -1,7 +1,7 @@
 from enum import IntEnum
 from typing import Any, List, Tuple
 
-from . import psv
+from .psv import PSVFile
 from .psvresponse import CDNs, Versions
 from .remote.http import HttpRemote
 
@@ -31,7 +31,7 @@ class CacheableHttpRemote(HttpRemote):
 		self.cache_db.write_response(response, self.remote, path, Source.HTTP)
 		return psvfile, response
 
-	def get_cached_psv(self, name: str) -> psv.PSVFile:
+	def get_cached_psv(self, name: str) -> PSVFile:
 		key = self.cache_db.get_response_key(self.remote, name)
 		if not key:
 			# Fall back to querying live
