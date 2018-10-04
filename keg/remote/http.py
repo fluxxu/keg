@@ -2,11 +2,11 @@ import json
 import os
 from datetime import datetime
 from hashlib import md5
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 
 import requests
 
-from .. import psv, psvresponse
+from .. import psv
 from ..exceptions import NetworkError
 from ..utils import partition_hash
 from .base import BaseRemote
@@ -32,25 +32,9 @@ class HttpRemote(BaseRemote):
 		url = self.remote + path
 		return StatefulResponse(path, requests.get(url))
 
-	def get_blobs(self) -> List[psvresponse.Blobs]:
-		psvfile, _ = self.get_psv("blobs")
-		return [psvresponse.Blobs(row) for row in psvfile]
-
-	def get_cdns(self) -> List[psvresponse.CDNs]:
-		psvfile, _ = self.get_psv("cdns")
-		return [psvresponse.CDNs(row) for row in psvfile]
-
-	def get_versions(self) -> List[psvresponse.Versions]:
-		psvfile, _ = self.get_psv("versions")
-		return [psvresponse.Versions(row) for row in psvfile]
-
 	def get_blob(self, name: str) -> Tuple[Any, StatefulResponse]:
 		resp = self.get_response(f"/blob/{name}")
 		return json.loads(resp.content.decode()), resp
-
-	def get_bgdl(self) -> List[psvresponse.BGDL]:
-		psvfile, _ = self.get_psv("bgdl")
-		return [psvresponse.BGDL(row) for row in psvfile]
 
 	def get_psv(self, name: str) -> Tuple[psv.PSVFile, StatefulResponse]:
 		resp = self.get_response(f"/{name}")
