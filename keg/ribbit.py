@@ -18,10 +18,11 @@ class RibbitRequest:
 	Perform the request with request.send()
 	"""
 
-	def __init__(self, hostname: str, port: int, data: bytes) -> None:
+	def __init__(self, hostname: str, port: int, path: str) -> None:
 		self.hostname = hostname
 		self.port = port
-		self.data = data
+		self.path = path
+		self.data = f"{path}\n".encode()
 
 	def send(self, buffer_size: int) -> "RibbitResponse":
 		# Connect to the ribbit server
@@ -41,7 +42,7 @@ class RibbitRequest:
 		data = b"".join(buf)
 
 		if not data:
-			raise NoDataError()
+			raise NoDataError(f"No data at {self.path}")
 
 		# Data is expected to terminate in a CRLF, otherwise it's most likely broken
 		if not data.endswith(b"\r\n"):
@@ -90,11 +91,8 @@ class RibbitClient:
 		self.port = port
 
 	def get(self, path: str, *, buffer_size: int = 4096) -> RibbitResponse:
-		request = RibbitRequest(self.hostname, self.port, f"{path}\n".encode())
-		try:
-			return request.send(buffer_size)
-		except NoDataError as e:
-			raise NoDataError(f"No data at {path}") from e
+		request = RibbitRequest(self.hostname, self.port, path)
+		return request.send(buffer_size)
 
 
 def parse_checksum(header: str) -> str:
