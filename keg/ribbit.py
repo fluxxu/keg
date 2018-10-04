@@ -1,4 +1,5 @@
 import socket
+from datetime import datetime
 from email.parser import BytesParser, HeaderParser
 from hashlib import sha256
 from urllib.parse import urlparse
@@ -61,6 +62,7 @@ class RibbitResponse:
 	) -> None:
 		self.request = request
 		self.data = data
+		self.date = datetime.utcnow()
 
 		self.message = BytesParser().parsebytes(data)  # type: ignore # (typeshed#2502)
 		self.checksum = parse_checksum(self.message.epilogue)
