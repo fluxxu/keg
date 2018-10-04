@@ -3,14 +3,10 @@ from email.parser import BytesParser, HeaderParser
 from hashlib import sha256
 from urllib.parse import urlparse
 
-from .exceptions import IntegrityVerificationError
+from .exceptions import IntegrityVerificationError, NoDataError, RibbitError
 
 
 DEFAULT_PORT = 1119
-
-
-class RibbitError(Exception):
-	pass
 
 
 class RibbitResponse:
@@ -56,7 +52,7 @@ class RibbitClient:
 		data = b"".join(buf)
 
 		if not data:
-			raise RibbitError(f"No data at {path!r}")
+			raise NoDataError(f"No data at {path!r}")
 
 		# Data is expected to terminate in a CRLF, otherwise it's most likely broken
 		if not data.endswith(b"\r\n"):

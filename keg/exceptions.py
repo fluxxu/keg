@@ -23,3 +23,13 @@ class IntegrityVerificationError(KegException):
 
 class ArmadilloKeyNotFound(FileNotFoundError):
 	pass
+
+
+# Ribbit exceptions
+
+class RibbitError(KegException):
+	pass
+
+
+class NoDataError(RibbitError):
+	pass
