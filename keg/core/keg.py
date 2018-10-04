@@ -19,6 +19,7 @@ class Keg:
 		self.config_path = os.path.join(self.path, "keg.conf")
 		self.db_path = os.path.join(self.path, "keg.db")
 		self.state_cache = StateCache(self.response_cache_dir)
+		self.ribbit_state_cache = StateCache(self.ribbit_cache_dir)
 
 		self.initialized = os.path.exists(self.path)
 
@@ -50,13 +51,15 @@ class Keg:
 		return reinitialized
 
 	def get_remote(self, remote: str) -> CacheableRemote:
-		cls = CacheableRibbitRemote if remote.startswith("ribbit://") else CacheableHttpRemote
+		is_ribbit = remote.startswith("ribbit://")
+		cls = CacheableRibbitRemote if is_ribbit else CacheableHttpRemote
+		state_cache = self.ribbit_state_cache if is_ribbit else self.state_cache
 
 		return cls(
 			remote,
 			cache_dir=self.response_cache_dir,
 			cache_db=self.db,
-			state_cache=self.state_cache
+			state_cache=state_cache
 		)
 
 	def clean_remote(self, remote: str) -> str:

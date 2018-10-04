@@ -49,6 +49,7 @@ class CacheableHttpRemote(CacheableRemote, HttpRemote):
 class CacheableRibbitRemote(CacheableRemote, RibbitRemote):
 	def get_psv(self, name: str):
 		psvfile, response = super().get_psv(name)
+		self.state_cache.write_ribbit_response(response)
 		self.cache_db.write_psv(psvfile, response.checksum, self.remote, name)
 		self.cache_db.write_ribbit_response(response, self.remote, response.request.path)
 		return psvfile, response

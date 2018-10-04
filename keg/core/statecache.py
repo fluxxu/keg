@@ -2,6 +2,7 @@ import os
 
 from .. import psv
 from ..remote.http import StatefulResponse
+from ..ribbit import RibbitResponse
 from ..utils import atomic_write, ensure_dir_exists, partition_hash
 
 
@@ -33,3 +34,13 @@ class StateCache:
 		if self.exists(name, response.digest):
 			return 0
 		return self.write(name, response.digest, response.content)
+
+	def write_ribbit_response(self, response: RibbitResponse) -> int:
+		filename = f"{response.checksum}.bmime"
+		name = os.path.join(
+			response.request.hostname,
+			response.request.path.lstrip("/")
+		)
+		if self.exists(name, filename):
+			return 0
+		return self.write(name, filename, response.data)
