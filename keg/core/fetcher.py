@@ -18,6 +18,7 @@ class FetchDirective:
 	"""
 	A FetchDirective holds the logic to fetch exactly one remote item.
 	"""
+
 	@classmethod
 	def key_exists(cls, key: str, local_cdn: cdn.LocalCDN) -> bool:
 		"""
@@ -33,7 +34,7 @@ class FetchDirective:
 		self.key = key
 		self.fetcher = fetcher
 
-	def fetch(self, verify: bool=False) -> None:
+	def fetch(self, verify: bool = False) -> None:
 		"""
 		Checks if the item is on the LocalCDN. If it's not, this fetches it.
 		"""
@@ -71,7 +72,7 @@ class ProductConfigFetchDirective(FetchDirective):
 	def key_exists(cls, key: str, local_cdn: cdn.LocalCDN) -> bool:
 		return local_cdn.has_config_item(key)
 
-	def fetch(self, verify: bool=False) -> None:
+	def fetch(self, verify: bool = False) -> None:
 		path = cdn.get_config_item_path(self.key)
 		if not self.exists():
 			item = self.fetcher.remote_cdn.get_config_item(path)
@@ -91,7 +92,7 @@ class ArchiveFetchDirective(FetchDirective):
 	def verify(self, fp: IO) -> None:
 		if not DataIndexFetchDirective.key_exists(self.key, self.fetcher.local_cdn):
 			raise FileNotFoundError(f"No index file for archive {self.key}")
-		# TODO: Archive verification
+			# TODO: Archive verification
 
 
 class LooseFileFetchDirective(FetchDirective):
@@ -123,7 +124,7 @@ class PatchArchiveFetchDirective(FetchDirective):
 	def verify(self, fp: IO) -> None:
 		if not PatchIndexFetchDirective.key_exists(self.key, self.fetcher.local_cdn):
 			raise FileNotFoundError(f"No index file for archive {self.key}")
-		# TODO: Patch Archive verification
+			# TODO: Patch Archive verification
 
 
 class PatchIndexFetchDirective(FetchDirective):
@@ -145,6 +146,7 @@ class FetchQueue:
 	A FetchQueue holds a set of keys, and a directive class.
 	Iterate over the drain() method to drain the queue.
 	"""
+
 	def __init__(self, directive_class: Type[FetchDirective]) -> None:
 		self.directive_class = directive_class
 		self._queue: Set[str] = set()
@@ -181,6 +183,7 @@ class Drain:
 	A drain for a FetchQueue (utility binding class).
 	Iterate over the drain() method to drain the queue.
 	"""
+
 	def __init__(self, name: str, queue: FetchQueue, fetcher: "Fetcher") -> None:
 		self.name = name
 		self.queue = queue
@@ -205,13 +208,14 @@ class Fetcher:
 	These generate "queues" (FetchQueue), which can be drained with Queue.drain().
 	This, in turn, generates FetchDirectives, on which you should call fetch().
 	"""
+
 	def __init__(
 		self,
 		version: Versions,
 		local_cdn: cdn.LocalCDN,
 		remote_cdn: cdn.RemoteCDN,
 		keg: Keg,
-		verify: bool=False
+		verify: bool = False,
 	) -> None:
 		self.version = version
 		self.local_cdn = local_cdn
@@ -254,8 +258,8 @@ class Fetcher:
 			self.product_config = self.local_cdn.get_product_config(product_config_key)
 
 		if self.product_config:
-			decryption_key_name = self.product_config.get("all", {}).get("config", {}).get(
-				"decryption_key_name", ""
+			decryption_key_name = (
+				self.product_config.get("all", {}).get("config", {}).get("decryption_key_name", "")
 			)
 			if decryption_key_name:
 				self.decryption_key_name = decryption_key_name
@@ -327,7 +331,7 @@ class Fetcher:
 					data = blte.load(
 						self.local_cdn.download_data(encoding.encoding_key),
 						encoding.encoding_key,
-						verify=self.verify
+						verify=self.verify,
 					)
 					self.encoding_file = EncodingFile(
 						data, self.build_config.encoding.content_key, verify=self.verify
@@ -363,7 +367,7 @@ class Fetcher:
 				self.cdn_config.archives,
 				self.cdn_config.archive_group,
 				self.local_cdn,
-				verify=self.verify
+				verify=self.verify,
 			)
 			if self.encoding_file:
 				for key, spec in self.encoding_file.encoding_keys:

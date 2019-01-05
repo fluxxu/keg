@@ -15,7 +15,7 @@ class TagError(KeyError):
 
 
 class InstallFile:
-	def __init__(self, contents: bytes, key: str, verify: bool=False) -> None:
+	def __init__(self, contents: bytes, key: str, verify: bool = False) -> None:
 		self.key = key
 		verify_data("install file", contents, key, verify)
 		self.tags: Dict[str, Tuple[int, bytes]] = {}
@@ -23,7 +23,7 @@ class InstallFile:
 		self.parse_bytes(contents)
 
 	@classmethod
-	def from_blte_file(self, fp: IO, key: str, encoded_key: str, verify: bool=False):
+	def from_blte_file(self, fp: IO, key: str, encoded_key: str, verify: bool = False):
 		contents = blte.load(fp, encoded_key, verify=verify)
 		return InstallFile(contents, key, verify=verify)
 
@@ -32,9 +32,7 @@ class InstallFile:
 
 		assert contents.read(2) == b"IN"
 
-		version, hash_size, tag_count, entry_count = struct.unpack(
-			">BBHI", contents.read(8)
-		)
+		version, hash_size, tag_count, entry_count = struct.unpack(">BBHI", contents.read(8))
 
 		for i in range(tag_count):
 			tag_name = read_cstr(contents)

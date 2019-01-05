@@ -3,7 +3,8 @@ from typing import List, Tuple, Type
 from parsimonious.grammar import Grammar
 
 
-GRAMMAR = Grammar("""
+GRAMMAR = Grammar(
+	"""
 espec = data_raw / data_zipped / data_encrypted / data_block
 
 data_raw = flag_raw
@@ -45,7 +46,8 @@ EQUALS = "="
 STAR = "*"
 BEGIN = "{"
 END = "}"
-""")
+"""
+)
 
 
 class Frame:
@@ -204,9 +206,9 @@ class EncryptedFrame(Frame):
 			return False
 
 		return (
-			other.key == self.key and
-			other.nonce == self.nonce and
-			other.subframe == self.subframe
+			other.key == self.key
+			and other.nonce == self.nonce
+			and other.subframe == self.subframe
 		)
 
 
@@ -253,7 +255,7 @@ class ZipFrame(Frame):
 
 		return cls(level, bits)
 
-	def __init__(self, level: int=DEFAULT_LEVEL, bits: int=DEFAULT_BITS) -> None:
+	def __init__(self, level: int = DEFAULT_LEVEL, bits: int = DEFAULT_BITS) -> None:
 		self.level = level
 		self.bits = bits
 

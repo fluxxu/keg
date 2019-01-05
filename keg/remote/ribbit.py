@@ -15,7 +15,7 @@ class RibbitRemote(BaseRemote):
 		if url.scheme != "ribbit":
 			raise ValueError(f"Invalid ribbit url: {url!r} (must start with ribbit://)")
 
-		# Store a cleaned remote, removing the path
+			# Store a cleaned remote, removing the path
 		self.base_remote = url._replace(path="").geturl()
 
 		self.product = url.path.lstrip("/")

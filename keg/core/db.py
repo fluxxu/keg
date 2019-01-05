@@ -46,7 +46,8 @@ TABLE_DEFINITIONS = [
 
 
 for table_name in ("versions", "bgdl"):
-	TABLE_DEFINITIONS.append(f"""
+	TABLE_DEFINITIONS.append(
+		f"""
 		CREATE TABLE IF NOT EXISTS "{table_name}" (
 			remote text,
 			key text,
@@ -59,7 +60,8 @@ for table_name in ("versions", "bgdl"):
 			Region text,
 			VersionsName text
 		)
-	""")
+		"""
+	)
 
 
 class AmbiguousVersionError(Exception):
@@ -88,28 +90,33 @@ class KegDB:
 	def commit(self):
 		return self.db.commit()
 
-	def get_build_configs(self, *, remote: str="") -> List[Tuple[str, str]]:
+	def get_build_configs(self, *, remote: str = "") -> List[Tuple[str, str]]:
 		"""
 		Returns a list of all BuildConfigs and their corresponding CDNConfig.
 		Specify `remote` to filter down to only those for that remote.
 		"""
 		cursor = self.cursor()
 		if remote:
-			cursor.execute("""
+			cursor.execute(
+				"""
 				SELECT distinct(BuildConfig), CDNConfig
 				FROM versions
 				WHERE remote = ?
 				GROUP BY BuildConfig
-			""", (remote, ))
+				""",
+				(remote,),
+			)
 		else:
-			cursor.execute("""
+			cursor.execute(
+				"""
 				SELECT distinct(BuildConfig), CDNConfig
 				FROM versions
 				GROUP BY BuildConfig
-			""")
+				"""
+			)
 		return cursor.fetchall()
 
-	def get_cdn_configs(self, *, remotes: List[str]=None) -> List[str]:
+	def get_cdn_configs(self, *, remotes: List[str] = None) -> List[str]:
 		"""
 		Returns a list of all BuildConfigs and their corresponding CDNConfig.
 		Specify `remote` to filter down to only those for that remote.
@@ -118,20 +125,25 @@ class KegDB:
 		cursor = self.cursor()
 		if remotes:
 			_placeholder = ", ".join(["?"] * len(remotes))
-			cursor.execute(f"""
+			cursor.execute(
+				f"""
 				SELECT distinct(CDNConfig)
 				FROM versions
 				WHERE remote IN ({_placeholder})
 				GROUP BY CDNConfig
 				ORDER BY CDNConfig
-			""", (*remotes, ))
+				""",
+				(*remotes,),
+			)
 		else:
-			cursor.execute("""
+			cursor.execute(
+				"""
 				SELECT distinct(CDNConfig)
 				FROM versions
 				GROUP BY CDNConfig
 				ORDER BY CDNConfig
-			""")
+				"""
+			)
 
 		return [k for k, in cursor.fetchall()]
 
@@ -141,14 +153,17 @@ class KegDB:
 		BuildID and VersionsName, filtered by `remote`.
 		"""
 		cursor = self.cursor()
-		cursor.execute("""
+		cursor.execute(
+			"""
 			SELECT
 				distinct(BuildConfig), BuildID, VersionsName
 			FROM versions
 			WHERE
 				remote = ?
 			ORDER BY BuildID ASC
-		""", (remote,))
+			""",
+			(remote,),
+		)
 
 		return cursor.fetchall()
 
@@ -158,14 +173,17 @@ class KegDB:
 		for a specific `remote` and `path`.
 		"""
 		cursor = self.cursor()
-		cursor.execute("""
+		cursor.execute(
+			"""
 			SELECT digest, timestamp
 			FROM "responses"
 			WHERE
 				remote = ? AND
 				path = ?
 			ORDER BY timestamp
-		""", (remote, path))
+			""",
+			(remote, path),
+		)
 
 		return cursor.fetchall()
 
@@ -178,14 +196,17 @@ class KegDB:
 		is ambiguous, an AmbiguousVersionError exception will be raised.
 		"""
 		cursor = self.db.cursor()
-		cursor.execute("""
+		cursor.execute(
+			"""
 			SELECT distinct(BuildConfig), CDNConfig
 			FROM versions
 			WHERE
 				REMOTE = ? AND
 				VersionsName = ? OR BuildID = ? OR BuildConfig = ?
 			GROUP BY BuildConfig
-		""", (remote, version, version, version))
+			""",
+			(remote, version, version, version),
+		)
 		results = cursor.fetchall()
 
 		if not results:
@@ -194,43 +215,49 @@ class KegDB:
 			return results[0]
 		else:
 			raise AmbiguousVersionError(
-				f"Version {repr(version)} is ambiguous",
-				sorted(set(k for k, _ in results))
+				f"Version {repr(version)} is ambiguous", sorted(set(k for k, _ in results))
 			)
 
 	def write_http_response(
 		self, response: StatefulResponse, remote: str, path: str
 	) -> None:
 		cursor = self.cursor()
-		cursor.execute("""
+		cursor.execute(
+			"""
 			INSERT INTO "responses"
 				(remote, path, timestamp, digest, source)
 			VALUES
 				(?, ?, ?, ?, ?)
-		""", (remote, path, response.timestamp, response.digest, ResponseSource.HTTP))
+			""",
+			(remote, path, response.timestamp, response.digest, ResponseSource.HTTP),
+		)
 		self.commit()
 
 	def write_ribbit_response(
 		self, response: RibbitResponse, remote: str, path: str
 	) -> None:
 		cursor = self.cursor()
-		cursor.execute("""
+		cursor.execute(
+			"""
 			INSERT INTO "responses"
 				(remote, path, timestamp, digest, source)
 			VALUES
 				(?, ?, ?, ?, ?)
-		""", (
-			remote,
-			path,
-			int(response.date.timestamp()),
-			response.checksum,
-			ResponseSource.RIBBIT
-		))
+			""",
+			(
+				remote,
+				path,
+				int(response.date.timestamp()),
+				response.checksum,
+				ResponseSource.RIBBIT,
+			),
+		)
 		self.commit()
 
 	def get_response_key(self, remote: str, path: str) -> str:
 		cursor = self.cursor()
-		cursor.execute("""
+		cursor.execute(
+			"""
 			SELECT digest
 			FROM responses
 			WHERE
@@ -238,7 +265,9 @@ class KegDB:
 				path = ?
 			ORDER BY timestamp DESC
 			LIMIT 1
-		""", (remote, path))
+			""",
+			(remote, path),
+		)
 		ret = cursor.fetchone()
 		if not ret:
 			return ""
@@ -246,22 +275,26 @@ class KegDB:
 
 	def write_psv(self, psvfile: psv.PSVFile, key: str, remote: str, name: str) -> None:
 		cursor = self.cursor()
-		cursor.execute(f"""
+		cursor.execute(
+			f"""
 			DELETE FROM "{name}"
 			WHERE
 				remote = ? AND
 				key = ?
-		""", (remote, key))
+			""",
+			(remote, key),
+		)
 
-		insert_tpl = """
-			INSERT INTO "%s"
-				(remote, key, row, %s)
-			VALUES
-				(?, ?, ?, %s)
-			""" % (
-			name,
-			", ".join(psvfile.header),
-			", ".join(["?"] * len(psvfile.header))
+		insert_tpl = (
+			(
+				"""
+				INSERT INTO "%s"
+					(remote, key, row, %s)
+				VALUES
+					(?, ?, ?, %s)
+				"""
+			)
+			% (name, ", ".join(psvfile.header), ", ".join(["?"] * len(psvfile.header)))
 		)
 
 		rows = []

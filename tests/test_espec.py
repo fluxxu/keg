@@ -60,9 +60,7 @@ def test_espec_block_shortform():
 	frame = spec.frame
 
 	assert isinstance(frame, espec.BlockTableFrame)
-	assert frame.frame_info == [
-		(65536, 1, espec.RawFrame())
-	]
+	assert frame.frame_info == [(65536, 1, espec.RawFrame())]
 
 
 def test_espec_block_shortform_repeat():
@@ -70,9 +68,7 @@ def test_espec_block_shortform_repeat():
 	frame = spec.frame
 
 	assert isinstance(frame, espec.BlockTableFrame)
-	assert frame.frame_info == [
-		(65536, 2, espec.RawFrame())
-	]
+	assert frame.frame_info == [(65536, 2, espec.RawFrame())]
 
 
 def test_espec_block_shortform_repeat_eof():
@@ -80,9 +76,7 @@ def test_espec_block_shortform_repeat_eof():
 	frame = spec.frame
 
 	assert isinstance(frame, espec.BlockTableFrame)
-	assert frame.frame_info == [
-		(65536, -1, espec.RawFrame())
-	]
+	assert frame.frame_info == [(65536, -1, espec.RawFrame())]
 
 
 def test_espec_block_longform():
@@ -90,10 +84,7 @@ def test_espec_block_longform():
 	frame = spec.frame
 
 	assert isinstance(frame, espec.BlockTableFrame)
-	assert frame.frame_info == [
-		(1898, 1, espec.ZipFrame()),
-		(51570, 1, espec.RawFrame()),
-	]
+	assert frame.frame_info == [(1898, 1, espec.ZipFrame()), (51570, 1, espec.RawFrame())]
 
 
 def test_espec_longform_oneframe():
@@ -101,9 +92,7 @@ def test_espec_longform_oneframe():
 	frame = spec.frame
 
 	assert isinstance(frame, espec.BlockTableFrame)
-	assert frame.frame_info == [
-		(16 * 1024, -1, espec.ZipFrame(level=6, bits=0)),
-	]
+	assert frame.frame_info == [(16 * 1024, -1, espec.ZipFrame(level=6, bits=0))]
 
 
 def test_espec_block_longform_manyframes():
@@ -139,10 +128,9 @@ def test_espec_block_longform_manyframes_unspecified_zipped():
 def test_espec_equality():
 	assert espec.RawFrame() == espec.RawFrame()
 	assert espec.ZipFrame(9, 15) == espec.ZipFrame(9, 15)
-	assert (
-		espec.EncryptedFrame("237DA26C65073F42", "33F13F18", espec.RawFrame()) ==
-		espec.EncryptedFrame("237DA26C65073F42", "33F13F18", espec.RawFrame())
-	)
+	assert espec.EncryptedFrame(
+		"237DA26C65073F42", "33F13F18", espec.RawFrame()
+	) == espec.EncryptedFrame("237DA26C65073F42", "33F13F18", espec.RawFrame())
 
 	assert espec.EncodingSpec("n") == espec.EncodingSpec("n")
 	assert espec.EncodingSpec("n") != espec.EncodingSpec("z")
@@ -153,9 +141,8 @@ def test_espec_equality():
 	assert espec.EncodingSpec("z:9") != espec.EncodingSpec("z:10")
 	assert espec.EncodingSpec("z:9") != espec.EncodingSpec("z:{9,mpq}")
 
-	assert (
-		espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}") ==
-		espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}")
+	assert espec.EncodingSpec("e:{A6D4CFE470214878,FD4466FC,n}") == espec.EncodingSpec(
+		"e:{A6D4CFE470214878,FD4466FC,n}"
 	)
 
 	# Shortform equality

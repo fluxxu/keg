@@ -31,7 +31,7 @@ ConfigFile = TypeVar("ConfigFile", bound="BaseConfig")
 
 class BaseConfig:
 	@classmethod
-	def from_bytes(cls: Type[ConfigFile], data: bytes, verify: bool=False) -> ConfigFile:
+	def from_bytes(cls: Type[ConfigFile], data: bytes, verify: bool = False) -> ConfigFile:
 		return cls(blizini.load(data.decode()))
 
 	def __init__(self, _values: Dict[str, str]) -> None:

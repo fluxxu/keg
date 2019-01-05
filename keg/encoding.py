@@ -7,9 +7,7 @@ from .utils import verify_data
 
 
 class EncodingFile:
-	def __init__(
-		self, data: bytes, content_key: str, verify: bool=False
-	) -> None:
+	def __init__(self, data: bytes, content_key: str, verify: bool = False) -> None:
 		self.content_key = content_key
 		self._encoding_keys: Dict[str, str] = {}
 		self._content_keys: Dict[str, Tuple[List[str], int]] = {}
@@ -36,27 +34,29 @@ class EncodingFile:
 			self.encoding_page_table_page_count,
 			_,
 			self.encoding_spec_block_size,
-		) = struct.unpack(
-			">BBHHIIBI", header.read(header_size - 3)
-		)
+		) = struct.unpack(">BBHHIIBI", header.read(header_size - 3))
 
 		tmp_buffer = BytesIO(data[header_size:])
 		spec_data = tmp_buffer.read(self.encoding_spec_block_size)
 		self.specs = [spec.decode() for spec in spec_data.split(b"\0") if spec]
 
-		self.content_page_table_index = BytesIO(tmp_buffer.read(
-			self.content_page_table_page_count * (self.content_hash_size * 2)
-		))
-		self.content_page_table = BytesIO(tmp_buffer.read(
-			self.content_page_table_page_count * 1024 * self.content_page_table_page_size
-		))
+		self.content_page_table_index = BytesIO(
+			tmp_buffer.read(self.content_page_table_page_count * (self.content_hash_size * 2))
+		)
+		self.content_page_table = BytesIO(
+			tmp_buffer.read(
+				self.content_page_table_page_count * 1024 * self.content_page_table_page_size
+			)
+		)
 
-		self.encoding_page_table_index = BytesIO(tmp_buffer.read(
-			self.encoding_page_table_page_count * (self.encoding_hash_size * 2)
-		))
-		self.encoding_page_table = BytesIO(tmp_buffer.read(
-			self.encoding_page_table_page_count * 1024 * self.encoding_page_table_page_size
-		))
+		self.encoding_page_table_index = BytesIO(
+			tmp_buffer.read(self.encoding_page_table_page_count * (self.encoding_hash_size * 2))
+		)
+		self.encoding_page_table = BytesIO(
+			tmp_buffer.read(
+				self.encoding_page_table_page_count * 1024 * self.encoding_page_table_page_size
+			)
+		)
 
 	@property
 	def encoding_keys(self) -> Iterable[Tuple[str, str]]:
@@ -70,9 +70,9 @@ class EncodingFile:
 			ofs = 0
 			page = self.encoding_page_table.read(page_size)
 			while ofs + self.encoding_hash_size + 9 < page_size:
-				espec_index, = struct.unpack(">i", page[
-					ofs + self.encoding_hash_size:ofs + self.encoding_hash_size + 4
-				])
+				espec_index, = struct.unpack(
+					">i", page[ofs + self.encoding_hash_size:ofs + self.encoding_hash_size + 4]
+				)
 				if espec_index == -1:
 					break
 				key = hexlify(page[ofs:ofs + self.encoding_hash_size]).decode()
@@ -93,9 +93,7 @@ class EncodingFile:
 			page = self.content_page_table.read(page_size)
 
 			while ofs + 6 + self.content_hash_size + self.encoding_hash_size <= page_size:
-				key_count, file_size_hi, file_size = struct.unpack(">BBI", page[
-					ofs:ofs + 6
-				])
+				key_count, file_size_hi, file_size = struct.unpack(">BBI", page[ofs:ofs + 6])
 				ofs += 6
 				file_size |= file_size_hi << 32
 				content_key = hexlify(page[ofs:ofs + self.content_hash_size]).decode()

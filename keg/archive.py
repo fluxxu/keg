@@ -30,14 +30,14 @@ class Archive:
 		data = self._data.read(size)
 		return data
 
-	def get_file(self, key: str, size: int, offset: int, verify: bool=False) -> bytes:
+	def get_file(self, key: str, size: int, offset: int, verify: bool = False) -> bytes:
 		data = self.get_file_data(size, offset)
 		decoded_data = BLTEDecoder(BytesIO(data), key, verify=verify)
 		return b"".join(decoded_data.blocks)
 
 
 class ArchiveIndex:
-	def __init__(self, data: bytes, key: str, verify: bool=False) -> None:
+	def __init__(self, data: bytes, key: str, verify: bool = False) -> None:
 		self.key = key
 		self.verify = verify
 
@@ -57,7 +57,7 @@ class ArchiveIndex:
 			self.key_size,
 			checksum_size,
 			self.num_items,
-			footer_checksum
+			footer_checksum,
 		) = struct.unpack("<8s8BI8s", footer_data)
 
 	def __repr__(self):
@@ -84,7 +84,7 @@ class ArchiveIndex:
 
 class ArchiveGroupIndex:
 	def __init__(
-		self, archive_indices: Iterable[ArchiveIndex], key: str, verify: bool=False
+		self, archive_indices: Iterable[ArchiveIndex], key: str, verify: bool = False
 	) -> None:
 		# sort keys in all indices and write them to blocks
 		# write toc from last hash in blocks and md5sum(block_data)
@@ -108,7 +108,9 @@ class ArchiveGroupIndex:
 
 
 class ArchiveGroup:
-	def __init__(self, archive_keys: List[str], key: str, cdn, verify: bool=False) -> None:
+	def __init__(
+		self, archive_keys: List[str], key: str, cdn, verify: bool = False
+	) -> None:
 		self.archive_keys = archive_keys
 		self.key = key
 		self.cdn = cdn
@@ -135,9 +137,7 @@ class ArchiveGroup:
 	@property
 	def merged_index(self) -> ArchiveGroupIndex:
 		if not self._merged_index:
-			self._merged_index = ArchiveGroupIndex(
-				self.indices, self.key, verify=self.verify
-			)
+			self._merged_index = ArchiveGroupIndex(self.indices, self.key, verify=self.verify)
 		return self._merged_index
 
 	def has_file(self, key: str) -> bool:

@@ -17,9 +17,7 @@ class KegConfig:
 
 	@property
 	def default_remote_prefix(self) -> str:
-		return self.config["keg"].get(
-			"default-remote-prefix", DEFAULT_REMOTE_PREFIX
-		)
+		return self.config["keg"].get("default-remote-prefix", DEFAULT_REMOTE_PREFIX)
 
 	@property
 	def preferred_cdns(self) -> List[str]:
@@ -57,9 +55,7 @@ class KegConfig:
 				"default-remote-prefix": DEFAULT_REMOTE_PREFIX,
 				"verify-integrity": True,
 			}
-			self.config["ngdp"] = {
-				"hash_function": "md5",
-			}
+			self.config["ngdp"] = {"hash_function": "md5"}
 			self.save()
 
 	def save(self) -> None:

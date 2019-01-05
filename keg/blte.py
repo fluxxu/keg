@@ -63,7 +63,7 @@ def verify_blte_data(fp: IO, key: str):
 
 
 class BLTEDecoder:
-	def __init__(self, fp: IO, key: str, verify: bool=False) -> None:
+	def __init__(self, fp: IO, key: str, verify: bool = False) -> None:
 		self.fp = fp
 		self.block_table: List[Tuple[int, int, str]] = []
 		self._block_index = 0
@@ -90,12 +90,8 @@ class BLTEDecoder:
 	def parse_block_info(self, fp: IO) -> None:
 		num_blocks, = struct.unpack(">i", b"\x00" + fp.read(3))
 		for i in range(num_blocks):
-			encoded_size, decoded_size, digest = struct.unpack(
-				">ii16s", fp.read(4 + 4 + 16)
-			)
-			self.block_table.append(
-				(encoded_size, decoded_size, hexlify(digest).decode())
-			)
+			encoded_size, decoded_size, digest = struct.unpack(">ii16s", fp.read(4 + 4 + 16))
+			self.block_table.append((encoded_size, decoded_size, hexlify(digest).decode()))
 
 	@property
 	def blocks(self) -> Iterable[bytes]:
@@ -134,12 +130,12 @@ class BLTEDecoder:
 		return ret
 
 
-def load(fp: IO, key: str, verify: bool=False) -> bytes:
+def load(fp: IO, key: str, verify: bool = False) -> bytes:
 	decoder = BLTEDecoder(fp, key, verify=verify)
 	return b"".join(decoder.blocks)
 
 
-def loads(data: bytes, key: str, verify: bool=False) -> bytes:
+def loads(data: bytes, key: str, verify: bool = False) -> bytes:
 	fp = BytesIO(data)
 	return load(fp, key, verify=verify)
 
@@ -158,9 +154,11 @@ class BLTEEncoder:
 				if isinstance(subframe, espec.RawFrame):
 					callback = lambda d: b"N" + d  # noqa
 				elif isinstance(subframe, espec.ZipFrame):
+
 					def callback(d: bytes) -> bytes:
 						compressor = zlib.compressobj(level=subframe.level, wbits=subframe.bits)
 						return b"Z" + compressor.compress(d) + compressor.flush()
+
 				else:
 					raise NotImplementedError
 

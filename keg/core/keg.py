@@ -30,10 +30,7 @@ class Keg:
 
 		self.config = KegConfig(self.config_path)
 		self.local_cdn = LocalCDN(
-			self.objects_path,
-			self.fragments_path,
-			self.armadillo_dir,
-			self.temp_dir
+			self.objects_path, self.fragments_path, self.armadillo_dir, self.temp_dir
 		)
 
 	def initialize(self) -> bool:
@@ -56,10 +53,7 @@ class Keg:
 		state_cache = self.ribbit_state_cache if is_ribbit else self.state_cache
 
 		return cls(
-			remote,
-			cache_dir=self.response_cache_dir,
-			cache_db=self.db,
-			state_cache=state_cache
+			remote, cache_dir=self.response_cache_dir, cache_db=self.db, state_cache=state_cache
 		)
 
 	def clean_remote(self, remote: str) -> str:

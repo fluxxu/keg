@@ -9,7 +9,7 @@ from .installfile import InstallFile
 
 class BuildManager:
 	def __init__(
-		self, build_config: str, cdn_config: str, cdn: LocalCDN, verify: bool=False
+		self, build_config: str, cdn_config: str, cdn: LocalCDN, verify: bool = False
 	) -> None:
 		self.build_config_key = build_config
 		self.cdn_config_key = cdn_config
@@ -59,10 +59,7 @@ class BuildManager:
 
 	def get_archive_group(self) -> ArchiveGroup:
 		return ArchiveGroup(
-			self.cdn_config.archives,
-			self.cdn_config.archive_group,
-			self.cdn,
-			verify=self.verify
+			self.cdn_config.archives, self.cdn_config.archive_group, self.cdn, verify=self.verify
 		)
 
 	def get_root(self) -> bytes:

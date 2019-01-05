@@ -1,4 +1,3 @@
-
 class KegException(Exception):
 	pass
 
@@ -26,6 +25,7 @@ class ArmadilloKeyNotFound(FileNotFoundError):
 
 
 # Ribbit exceptions
+
 
 class RibbitError(KegException):
 	pass

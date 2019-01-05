@@ -47,53 +47,53 @@ class BaseCDN:
 	def get_config_item(self, path: str) -> IO:
 		raise NotImplementedError()
 
-	def fetch_config(self, key: str, verify: bool=False) -> bytes:
+	def fetch_config(self, key: str, verify: bool = False) -> bytes:
 		with self.get_item(get_config_path(key)) as resp:
 			data = resp.read()
 		verify_data("config file", data, key, verify)
 		return data
 
-	def fetch_config_data(self, key: str, verify: bool=False) -> bytes:
+	def fetch_config_data(self, key: str, verify: bool = False) -> bytes:
 		with self.get_config_item(get_config_item_path(key)) as resp:
 			data = resp.read()
 		verify_data("config item", data, key, verify)
 		return data
 
-	def fetch_index(self, key: str, verify: bool=False) -> bytes:
+	def fetch_index(self, key: str, verify: bool = False) -> bytes:
 		with self.get_item(get_data_index_path(key)) as resp:
 			return resp.read()
 
-	def fetch_patch(self, key: str, verify: bool=False) -> bytes:
+	def fetch_patch(self, key: str, verify: bool = False) -> bytes:
 		with self.get_item(get_patch_path(key)) as resp:
 			data = resp.read()
 		verify_data("patch file", data, key, verify)
 		return data
 
-	def fetch_patch_index(self, key: str, verify: bool=False) -> bytes:
+	def fetch_patch_index(self, key: str, verify: bool = False) -> bytes:
 		with self.get_item(get_patch_index_path(key)) as resp:
 			data = resp.read()
 		verify_data("patch index", data[-28:], key, verify)
 		return data
 
-	def get_build_config(self, key: str, verify: bool=False) -> BuildConfig:
+	def get_build_config(self, key: str, verify: bool = False) -> BuildConfig:
 		return BuildConfig.from_bytes(self.fetch_config(key, verify=verify))
 
-	def get_cdn_config(self, key: str, verify: bool=False) -> CDNConfig:
+	def get_cdn_config(self, key: str, verify: bool = False) -> CDNConfig:
 		return CDNConfig.from_bytes(self.fetch_config(key, verify=verify))
 
-	def get_patch_config(self, key: str, verify: bool=False) -> PatchConfig:
+	def get_patch_config(self, key: str, verify: bool = False) -> PatchConfig:
 		return PatchConfig.from_bytes(self.fetch_config(key, verify=verify))
 
-	def get_product_config(self, key: str, verify: bool=False) -> dict:
+	def get_product_config(self, key: str, verify: bool = False) -> dict:
 		return json.loads(self.fetch_config_data(key, verify))
 
 	def get_archive(self, key: str) -> Archive:
 		return Archive(key, self)
 
-	def get_index(self, key: str, verify: bool=False) -> ArchiveIndex:
+	def get_index(self, key: str, verify: bool = False) -> ArchiveIndex:
 		return ArchiveIndex(self.fetch_index(key), key, verify=verify)
 
-	def download_data(self, key: str, verify: bool=False) -> IO:
+	def download_data(self, key: str, verify: bool = False) -> IO:
 		return self.get_item(get_data_path(key))
 
 
@@ -130,11 +130,7 @@ class RemoteCDN(BaseCDN):
 
 class LocalCDN(BaseCDN):
 	def __init__(
-		self,
-		base_dir: str,
-		fragments_dir: str,
-		armadillo_dir: str,
-		temp_dir: str
+		self, base_dir: str, fragments_dir: str, armadillo_dir: str, temp_dir: str
 	) -> None:
 		self.base_dir = base_dir
 		self.fragments_dir = fragments_dir
@@ -149,9 +145,7 @@ class LocalCDN(BaseCDN):
 		return os.path.join(self.armadillo_objects_dir, path.lstrip("/"))
 
 	def get_config_path(self, path: str) -> str:
-		return os.path.join(
-			self.base_dir, "configs", "data", path.lstrip("/")
-		)
+		return os.path.join(self.base_dir, "configs", "data", path.lstrip("/"))
 
 	def get_fragment_path(self, key: str) -> str:
 		return os.path.join(self.fragments_dir, partition_hash(key))
@@ -277,7 +271,7 @@ class HTTPCacheWrapper:
 
 		return self.fp.close()
 
-	def read(self, size: int=-1) -> bytes:
+	def read(self, size: int = -1) -> bytes:
 		if size == -1:
 			ret = self.fp.read()
 		else:
