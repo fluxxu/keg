@@ -3,9 +3,12 @@ import os, sys; sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(
 import csv
 import json
 import re
+from concurrent import futures
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from glob import iglob
 from io import BytesIO, StringIO
+from typing import Optional
 from urllib.parse import urlparse
 
 import click
@@ -14,9 +17,9 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from keg import blte, psv
-from keg.archive import ArchiveIndex
+from keg.archive import ArchiveGroup, ArchiveIndex
 from keg.build import BuildManager
-from keg.cdn import DEFAULT_CONFIG_PATH, RemoteCDN
+from keg.cdn import DEFAULT_CONFIG_PATH, DelegatingCDN, LocalCDN, RemoteCDN
 from keg.core.fetcher import Fetcher
 from keg.core.keg import Keg
 from keg.encoding import EncodingFile
@@ -546,18 +549,122 @@ def inspect(ctx, remote):
 	))
 
 
+class InstallDirective:
+
+	def __init__(
+		self,
+		filename: str,
+		key: str,
+		archive_group: ArchiveGroup = None,
+		cdn: LocalCDN = None,
+		encoding_file: Optional[EncodingFile] = None,
+		install_dir: str = "",
+		tqdm_bar: tqdm = None,
+		verify: bool = False,
+
+	):
+		self.filename = filename
+		self.key = key
+
+		assert archive_group
+		assert cdn
+		assert install_dir
+		assert tqdm_bar
+
+		self.archive_group = archive_group
+		self.cdn = cdn
+		self.encoding_file = encoding_file
+		self.install_dir = install_dir
+		self.tqdm_bar = tqdm_bar
+		self.verify = verify
+
+
+def do_install_file(directive: InstallDirective):
+
+	try:
+		encoding_key = directive.encoding_file.find_by_content_key(directive.key)
+	except KeyError:
+		tqdm.write(
+			f"WARNING: Cannot find {directive.key} ({directive.filename}). Skipping.",
+			sys.stderr
+		)
+
+		directive.tqdm_bar.update()
+		return
+
+	file_path = os.path.join(directive.install_dir, directive.filename)
+	dirname = os.path.dirname(file_path)
+
+	if not os.path.exists(dirname):
+		os.makedirs(dirname)
+
+	if directive.cdn.has_data(encoding_key):
+		encoded_file, encoded_file_size = directive.cdn.download_data(
+			encoding_key,
+			verify=directive.verify
+		)
+
+		with encoded_file:
+			decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=directive.verify)
+			with open(file_path, "wb") as f:
+				decoder.decode_and_write(f)
+	elif directive.cdn.has_fragment(encoding_key):
+		with directive.cdn.get_fragment(encoding_key) as encoded_file:
+			decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=directive.verify)
+			with open(file_path, "wb") as f:
+				decoder.decode_and_write(f)
+	elif directive.archive_group.has_file(encoding_key):
+		try:
+			data = directive.archive_group.get_file_by_key(encoding_key)
+		except NetworkError as e:
+			tqdm.write(
+				f"ERROR: {file_path} -- {e} (ekey={encoding_key}, ckey={directive.key})"
+			)
+
+			directive.tqdm_bar.update()
+			raise
+
+		else:
+			with open(file_path, "wb") as f:
+				f.write(data)
+	else:
+		directive.tqdm_bar.update()
+		raise click.ClickException(
+			f"Cannot install {file_path}: Missing data for {encoding_key}. Try running "
+			f"`ngdp fetch {remote}`."
+		)
+
+	directive.tqdm_bar.update()
+
+
 @main.command()
 @click.argument("remote", type=RemoteParam())
 @click.argument("version")
 @click.argument("outdir", default=".")
+@click.option("--fetch", is_flag=True)
 @click.option("--show-tags", is_flag=True)
 @click.option("--tags", multiple=True)
 @click.option("--dry-run", "--dryrun", is_flag=True)
 @click.option("--only", multiple=True)
 @click.option("--root/--no-root", default=False)
 @click.pass_context
-def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
+def install(ctx, remote, version, outdir, fetch, tags, show_tags, dryrun, only, root):
+	if fetch:
+		http_remote: CacheableHttpRemote = ctx.obj.keg.get_remote(remote)
+		cdns, versions, blobs = ctx.obj.fetch_stateful_data(http_remote)
+		remote_cdn = ctx.obj._choose_cdn(cdns)
+		cdn = DelegatingCDN(
+			os.path.join(ctx.obj.keg.path, "objects"),
+			os.path.join(ctx.obj.keg.path, "fragments"),
+			os.path.join(ctx.obj.keg.path, "armadillo"),
+			os.path.join(ctx.obj.keg.path, "tmp"),
+			remote_cdn,
+		)
+	else:
+		cdn = ctx.obj.keg.local_cdn
+
 	# version can be a BuildName, BuildID or BuildConfig
+
 	try:
 		build_config_key, cdn_config_key = ctx.obj.keg.db.find_version(
 			remote=remote, version=version
@@ -567,9 +674,8 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 
 	click.echo(f"Checking out {build_config_key}...")
 
-	local_cdn = ctx.obj.keg.local_cdn
 	build = BuildManager(
-		build_config_key, cdn_config_key, local_cdn, verify=ctx.obj.verify
+		build_config_key, cdn_config_key, cdn, verify=ctx.obj.verify
 	)
 
 	try:
@@ -633,13 +739,17 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 
 	prev_filename, prev_key = "", ""
 	bar = ctx.obj.tqdm(unit="file", ncols=0, leave=False, total=len(entries))
-	errors = 0
+
+	executor = ThreadPoolExecutor()
+	future_list = []
+
 	for filename, key, size in entries:
-		bar.update()
 		if filename == prev_filename:
 			# Skips over potential conflicts
 			if key != prev_key:
 				tqdm.write(f"WARNING: Unresolved conflict for {filename}", sys.stderr)
+
+			bar.update()
 			continue
 
 		prev_filename, prev_key = filename, key
@@ -649,47 +759,23 @@ def install(ctx, remote, version, outdir, tags, show_tags, dryrun, only, root):
 			raise click.ClickException(f"{file_path} already exists. Not overwriting.")
 
 		bar.set_description(f"Installing {filename} ({naturalsize(size)})")
+		future_list.append(executor.submit(do_install_file, InstallDirective(
+			filename,
+			key,
+			archive_group=archive_group,
+			cdn=cdn,
+			encoding_file=encoding_file,
+			install_dir=install_dir,
+			tqdm_bar=bar,
+			verify=ctx.obj.verify
+		)))
 
-		try:
-			encoding_key = encoding_file.find_by_content_key(key)
-		except KeyError:
-			tqdm.write(f"WARNING: Cannot find {key} ({filename}). Skipping.", sys.stderr)
-			continue
-
-		dirname = os.path.dirname(file_path)
-		if not os.path.exists(dirname):
-			os.makedirs(dirname)
-
-		if local_cdn.has_data(encoding_key):
-			with local_cdn.download_data(encoding_key, verify=ctx.obj.verify) as encoded_file:
-				decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=ctx.obj.verify)
-				with open(file_path, "wb") as f:
-					decoder.decode_and_write(f)
-		elif local_cdn.has_fragment(encoding_key):
-			with local_cdn.get_fragment(encoding_key) as encoded_file:
-				decoder = blte.BLTEDecoder(encoded_file, encoding_key, verify=ctx.obj.verify)
-				with open(file_path, "wb") as f:
-					decoder.decode_and_write(f)
-		elif archive_group.has_file(encoding_key):
-			try:
-				data = archive_group.get_file_by_key(encoding_key)
-			except NetworkError as e:
-				errors += 1
-				tqdm.write(f"ERROR: {file_path} -- {e} (ekey={encoding_key}, ckey={key})")
-			else:
-				with open(file_path, "wb") as f:
-					f.write(data)
-		else:
-			raise click.ClickException(
-				f"Cannot install {file_path}: Missing data for {encoding_key}. "
-				"Try running `ngdp fetch {remote}`."
-			)
+	for future in futures.as_completed(future_list):
+		if future.exception():
+			tqdm.write(f"Some files could not be written.")
+			raise future.exception()
 
 	bar.close()
-
-	if errors:
-		tqdm.write(f"{errors} files could not be written.")
-		exit(1)
 
 
 @main.command("log")

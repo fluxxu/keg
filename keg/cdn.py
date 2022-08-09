@@ -1,5 +1,6 @@
 import json
 import os
+from threading import Lock
 from typing import IO
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -114,12 +115,27 @@ class RemoteCDN(BaseCDN):
 		# urljoin("/foo/bar/", "/baz") => "/baz"
 		return urljoin(base_path + "/", path.lstrip("/"))
 
-	def get_response(self, path: str) -> requests.Response:
+	def _get_response(self, method: str, path: str, raise_for_status=True) -> requests.Response:
 		url = urljoin(self.server, path)
-		ret = requests.get(url, stream=True)
-		if ret.status_code != 200:
-			raise NetworkError(f"Unexpected status code {ret.status_code} for {url}")
+		ret = requests.request(method, url, stream=True)
+
+		if ret.status_code != 200 and raise_for_status:
+			raise NetworkError(f"Unexpected status code {ret.status_code} for {path}")
+
 		return ret
+
+	def get_response(self, path: str) -> requests.Response:
+		return self._get_response("GET", path)
+
+	def item_exists(self, path: str) -> bool:
+		final_path: str = self._join_path(self.path, path)
+		with self._get_response("HEAD", final_path, raise_for_status=False) as resp:
+			return True if 200 <= resp.status_code < 400 else False
+
+	def config_item_exists(self, path: str) -> bool:
+		final_path: str = self._join_path(self.config_path, path)
+		with self._get_response("HEAD", final_path, raise_for_status=False) as resp:
+			return True if 200 <= resp.status_code < 400 else False
 
 	def get_item(self, path: str) -> IO:
 		final_path: str = self._join_path(self.path, path)
@@ -160,7 +176,8 @@ class LocalCDN(BaseCDN):
 		return os.path.join(self.fragments_dir, partition_hash(key))
 
 	def get_item(self, path: str) -> IO:
-		return open(self.get_full_path(path), "rb")
+		full_path = self.get_full_path(path)
+		return open(full_path, "rb")
 
 	def get_config_item(self, path: str) -> IO:
 		return open(self.get_config_path(path), "rb")
@@ -258,6 +275,100 @@ class LocalCDN(BaseCDN):
 		if not os.path.exists(dirname):
 			os.makedirs(dirname)
 		os.rename(temp_path, crypt_path)
+
+
+class DelegatingCDN(LocalCDN):
+	"""Extends LocalCDN to fall back to a configured delegate CDN on an item "miss."
+
+	The motivating use case for this is to allow the `install` command to download only
+	those CDN artifacts required to build a particular release.
+	"""
+
+	def __init__(
+		self,
+		base_dir: str,
+		fragments_dir: str,
+		armadillo_dir: str,
+		temp_dir: str,
+		delegate_cdn: RemoteCDN,
+	) -> None:
+		super().__init__(base_dir, fragments_dir, armadillo_dir, temp_dir)
+
+		self.delegate_cdn = delegate_cdn
+
+		self._mutex_table_lock = Lock()
+		self._mutex_table = {}
+
+	def _with_path_mutex(self, path):
+		with self._mutex_table_lock:
+			if path not in self._mutex_table:
+				self._mutex_table[path] = Lock()
+
+			return self._mutex_table[path]
+
+	def get_item(self, path: str) -> IO:
+		with self._with_path_mutex(path):
+			if super().exists(path):
+				return super().get_item(path)
+
+			with self.delegate_cdn.get_item(path) as item:
+				super().save_item(item, path)
+
+			return super().get_item(path)
+
+	def get_config_item(self, path: str) -> IO:
+		with self._with_path_mutex(path):
+			if super().has_config_item(path):
+				return super().get_config_item(path)
+
+			with self.delegate_cdn.get_config_item(path) as item:
+				super().save_config_item(item, path)
+
+			return super().get_config_item(path)
+
+	def has_config(self, key: str) -> bool:
+		if super().has_config(key):
+			return True
+
+		return self.delegate_cdn.config_item_exists(key)
+
+	def has_data(self, key: str) -> bool:
+		if super().has_data(key):
+			return True
+
+		return self.delegate_cdn.item_exists(get_data_path(key))
+
+	def has_index(self, key: str) -> bool:
+		if super().has_index(key):
+			return True
+
+		return self.delegate_cdn.item_exists(get_data_index_path(key))
+
+	def has_patch(self, key: str) -> bool:
+		if super().has_patch(key):
+			return True
+
+		return self.delegate_cdn.item_exists(get_patch_path(key))
+
+	def has_patch_index(self, key: str) -> bool:
+		if super().has_patch_index(key):
+			return True
+
+		return self.delegate_cdn.item_exists(get_patch_index_path(key))
+
+	def has_config_item(self, key: str) -> bool:
+		if super().has_config_item(key):
+			return True
+
+		return self.delegate_cdn.item_exists(
+			self.get_config_path(f"/{partition_hash(key)}")
+		)
+
+	def has_fragment(self, key: str) -> bool:
+		if super().has_fragment(key):
+			return True
+
+		return self.delegate_cdn.item_exists(self.get_fragment_path(key))
 
 
 class HTTPCacheWrapper:
