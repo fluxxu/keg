@@ -5,12 +5,13 @@ from urllib.parse import urljoin
 from uuid import uuid4
 
 import requests
+from tqdm import tqdm
 
 from .archive import Archive, ArchiveIndex
 from .armadillo import ArmadilloKey
 from .configfile import BuildConfig, CDNConfig, PatchConfig
 from .exceptions import ArmadilloKeyNotFound, NetworkError
-from .utils import partition_hash, verify_data
+from .utils import TqdmReadable, partition_hash, verify_data
 
 
 DEFAULT_CONFIG_PATH = "tpr/configs/data"
@@ -98,10 +99,11 @@ class BaseCDN:
 
 
 class RemoteCDN(BaseCDN):
-	def __init__(self, server: str, path: str, config_path: str) -> None:
+	def __init__(self, server: str, path: str, config_path: str, with_tqdm: bool = True):
 		self.server = server
 		self.path = path
 		self.config_path = config_path
+		self.with_tqdm = with_tqdm
 
 	def _join_path(self, base_path: str, path: str):
 		# Final path always has to end with a "/"
@@ -120,8 +122,15 @@ class RemoteCDN(BaseCDN):
 		return ret
 
 	def get_item(self, path: str) -> IO:
-		final_path = self._join_path(self.path, path)
-		return self.get_response(final_path).raw
+		final_path: str = self._join_path(self.path, path)
+		resp = self.get_response(final_path)
+		content_length = resp.headers.get("Content-Length")
+
+		if content_length and self.with_tqdm:
+			bar = tqdm(leave=False, total=int(content_length), unit="bytes")
+			return TqdmReadable(resp.raw, bar)
+		else:
+			return resp.raw
 
 	def get_config_item(self, path: str) -> IO:
 		final_path = self._join_path(self.config_path, path)
@@ -205,7 +214,7 @@ class LocalCDN(BaseCDN):
 		with open(key_path, "rb") as f:
 			return ArmadilloKey(f.read())
 
-	def write_temp_file(self, data: bytes) -> str:
+	def write_temp_file(self, fp: IO, buf_size: int = -1) -> str:
 		"""
 		Writes bytes to the temp store.
 		Returns the temporary file path.
@@ -214,7 +223,15 @@ class LocalCDN(BaseCDN):
 		if not os.path.exists(self.temp_dir):
 			os.makedirs(self.temp_dir)
 		with open(temp_path, "wb") as f:
-			f.write(data)
+			if buf_size < 0:
+				f.write(fp.read())
+			else:
+				while True:
+					b = fp.read(buf_size)
+					if b:
+						f.write(b)
+					else:
+						break
 
 		return temp_path
 
@@ -231,11 +248,11 @@ class LocalCDN(BaseCDN):
 	def has_encrypted_file(self, path: str) -> bool:
 		return os.path.exists(self.get_encrypted_path(path))
 
-	def write_encrypted_file(self, fp: IO, path: str) -> None:
+	def write_encrypted_file(self, fp: IO, path: str, buf_size: int = -1) -> None:
 		"""
 		Writes an encrypted file to the armadillo object store.
 		"""
-		temp_path = self.write_temp_file(fp.read())
+		temp_path = self.write_temp_file(fp, buf_size=buf_size)
 		crypt_path = self.get_encrypted_path(path)
 		dirname = os.path.dirname(crypt_path)
 		if not os.path.exists(dirname):
@@ -263,7 +280,11 @@ class HTTPCacheWrapper:
 		return False
 
 	def close(self):
-		self.read()
+		while True:
+			b = self.read(8192)
+			if not b:
+				break
+
 		self._cache_file.close()
 
 		# Atomic write&move; make sure there's no partially-written caches.

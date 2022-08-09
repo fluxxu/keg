@@ -1,8 +1,30 @@
 import hashlib
 import os
-from typing import IO
+from io import IOBase
+from typing import IO, AnyStr
 
 from .exceptions import IntegrityVerificationError
+
+
+class TqdmReadable(IOBase):
+	"""Wraps an underlying IO object to instrument calls to read() through a tqdm bar."""
+
+	def __init__(self, readable: IO, bar):
+		self.readable = readable
+		self.bar = bar
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.readable.close()
+		self.bar.close()
+
+	def read(self, size: int = -1) -> AnyStr:
+		ret = self.readable.read(size)
+		if ret:
+			self.bar.update(len(ret))
+		return ret
 
 
 def atomic_write(path: str, content: bytes) -> int:
