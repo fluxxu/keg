@@ -48,10 +48,14 @@ class FetchDirective:
 				else:
 					# We don't have the key? Store it in the crypt store...
 					if not self.fetcher.local_cdn.has_encrypted_file(path):
-						self.fetcher.local_cdn.write_encrypted_file(item, path)
+						self.fetcher.local_cdn.write_encrypted_file(
+							item,
+							path,
+							buf_size=8192
+						)
 					return
 
-			temp_path = self.fetcher.local_cdn.write_temp_file(item.read())
+			temp_path = self.fetcher.local_cdn.write_temp_file(item, buf_size=8192)
 			if self.fetcher.verify:
 				with open(temp_path, "rb") as f:
 					self.verify(f)
