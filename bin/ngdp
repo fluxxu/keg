@@ -599,7 +599,7 @@ def do_install_file(directive: InstallDirective):
 		os.makedirs(dirname)
 
 	if directive.cdn.has_data(encoding_key):
-		encoded_file, encoded_file_size = directive.cdn.download_data(
+		encoded_file = directive.cdn.download_data(
 			encoding_key,
 			verify=directive.verify
 		)
