@@ -595,8 +595,7 @@ def do_install_file(directive: InstallDirective):
 	file_path = os.path.join(directive.install_dir, directive.filename)
 	dirname = os.path.dirname(file_path)
 
-	if not os.path.exists(dirname):
-		os.makedirs(dirname)
+	os.makedirs(dirname, exist_ok=True)  # This could happen concurrently
 
 	if directive.cdn.has_data(encoding_key):
 		encoded_file = directive.cdn.download_data(
