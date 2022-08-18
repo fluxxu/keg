@@ -739,9 +739,6 @@ def install(ctx, remote, version, outdir, fetch, tags, show_tags, dryrun, only, 
 	prev_filename, prev_key = "", ""
 	bar = ctx.obj.tqdm(unit="file", ncols=0, leave=False, total=len(entries))
 
-	executor = ThreadPoolExecutor()
-	future_list = []
-
 	for filename, key, size in entries:
 		if filename == prev_filename:
 			# Skips over potential conflicts
@@ -758,7 +755,8 @@ def install(ctx, remote, version, outdir, fetch, tags, show_tags, dryrun, only, 
 			raise click.ClickException(f"{file_path} already exists. Not overwriting.")
 
 		bar.set_description(f"Installing {filename} ({naturalsize(size)})")
-		future_list.append(executor.submit(do_install_file, InstallDirective(
+
+		do_install_file(InstallDirective(
 			filename,
 			key,
 			archive_group=archive_group,
@@ -767,12 +765,7 @@ def install(ctx, remote, version, outdir, fetch, tags, show_tags, dryrun, only, 
 			install_dir=install_dir,
 			tqdm_bar=bar,
 			verify=ctx.obj.verify
-		)))
-
-	for future in futures.as_completed(future_list):
-		if future.exception():
-			tqdm.write(f"Some files could not be written.")
-			raise future.exception()
+		))
 
 	bar.close()
 
