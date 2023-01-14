@@ -643,7 +643,7 @@ def do_install_file(directive: InstallDirective):
 @click.option("--fetch", is_flag=True)
 @click.option("--show-tags", is_flag=True)
 @click.option("--tags", multiple=True)
-@click.option("--dry-run", "--dryrun", is_flag=True)
+@click.option("--dryrun", "--dry-run", is_flag=True)
 @click.option("--only", multiple=True)
 @click.option("--root/--no-root", default=False)
 @click.pass_context
